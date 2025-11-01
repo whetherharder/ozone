@@ -349,12 +349,14 @@ jobs:
           # Fix cmake_minimum_required version in ALL HDFS CMakeLists.txt files
           echo "=== Fixing CMake version in HDFS native client (all CMakeLists.txt) ==="
 
-          # Find all CMakeLists.txt files with VERSION 3.1 and update them
-          find hadoop-hdfs-project/hadoop-hdfs-native-client -name "CMakeLists.txt" \
-            -exec grep -l "cmake_minimum_required(VERSION 3.1" {} \; | \
+          # Find all CMakeLists.txt files and update cmake_minimum_required to 3.5
+          find hadoop-hdfs-project/hadoop-hdfs-native-client -name "CMakeLists.txt" | \
           while read -r cmake_file; do
-            echo "Updating $cmake_file"
-            sed -i.bak 's/cmake_minimum_required(VERSION 3.1/cmake_minimum_required(VERSION 3.5/' "$cmake_file"
+            if grep -q "cmake_minimum_required" "$cmake_file"; then
+              echo "Updating $cmake_file"
+              # Replace any cmake_minimum_required with VERSION < 3.5
+              sed -i.bak 's/cmake_minimum_required(VERSION [0-9]\+\.[0-9]\+/cmake_minimum_required(VERSION 3.5/' "$cmake_file"
+            fi
           done
 
           echo "✅ Updated all HDFS cmake_minimum_required to VERSION 3.5"
