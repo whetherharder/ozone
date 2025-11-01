@@ -236,7 +236,7 @@ jobs:
       - name: Clone Hadoop repository (shallow)
         run: |
           echo "=== Cloning Hadoop ${HADOOP_VERSION} (shallow) ==="
-          git clone --depth 1 --branch branch-${HADOOP_VERSION} \
+          git clone --depth 1 --branch rel/release-${HADOOP_VERSION} \
             --single-branch \
             https://github.com/apache/hadoop.git $HOME/hadoop-src
 
