@@ -2,7 +2,7 @@ name: Build Hadoop libhdfs (Optimized)
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'claude/**' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
