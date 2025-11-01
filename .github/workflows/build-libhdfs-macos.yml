@@ -354,7 +354,8 @@ jobs:
             if grep -q "cmake_minimum_required" "$cmake_file"; then
               echo "Updating $cmake_file"
               # Replace any cmake_minimum_required with VERSION < 3.5
-              sed -i.bak 's/cmake_minimum_required(VERSION [0-9]\+\.[0-9]\+/cmake_minimum_required(VERSION 3.5/' "$cmake_file"
+              # Use -E for extended regex on macOS (+ instead of \+)
+              sed -i.bak -E 's/cmake_minimum_required\(VERSION [0-9]+\.[0-9]+/cmake_minimum_required(VERSION 3.5/' "$cmake_file"
             fi
           done
 

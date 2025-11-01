@@ -231,12 +231,15 @@ EOF
               # Show before
               echo "  Before: $(grep cmake_minimum_required "$cmake_file" | head -1)"
               # Replace any cmake_minimum_required with VERSION < 3.5
-              sed -i.bak 's/cmake_minimum_required(VERSION [0-9]\+\.[0-9]\+/cmake_minimum_required(VERSION 3.5/' "$cmake_file"
+              # Use -E for extended regex on macOS (+ instead of \+)
+              sed -i.bak -E 's/cmake_minimum_required\(VERSION [0-9]+\.[0-9]+/cmake_minimum_required(VERSION 3.5/' "$cmake_file"
               # Show after
               echo "  After:  $(grep cmake_minimum_required "$cmake_file" | head -1)"
               # Verify change
               if ! grep -q "cmake_minimum_required(VERSION 3.5" "$cmake_file"; then
                 echo "  ⚠️  WARNING: Failed to update $cmake_file"
+                # Try to show what went wrong
+                echo "  Content: $(cat "$cmake_file" | grep -A2 -B2 cmake_minimum_required)"
               fi
             fi
           done
