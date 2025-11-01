@@ -223,21 +223,26 @@ EOF
           # Fix cmake_minimum_required in ALL HDFS CMakeLists.txt files (including root)
           echo "=== Fixing CMake version in HDFS native client (all CMakeLists.txt) ==="
 
-          # First, fix the main CMakeLists.txt in src/
-          MAIN_CMAKE="hadoop-hdfs-project/hadoop-hdfs-native-client/src/CMakeLists.txt"
-          if [ -f "$MAIN_CMAKE" ]; then
-            echo "Updating main $MAIN_CMAKE"
-            sed -i.bak 's/cmake_minimum_required(VERSION [0-9]\+\.[0-9]\+/cmake_minimum_required(VERSION 3.5/' "$MAIN_CMAKE"
-          fi
-
-          # Then find and fix all other CMakeLists.txt files
+          # Find all CMakeLists.txt files and update cmake_minimum_required to 3.5
           find hadoop-hdfs-project/hadoop-hdfs-native-client -name "CMakeLists.txt" | \
           while read -r cmake_file; do
             if grep -q "cmake_minimum_required" "$cmake_file"; then
               echo "Updating $cmake_file"
+              # Show before
+              echo "  Before: $(grep cmake_minimum_required "$cmake_file" | head -1)"
+              # Replace any cmake_minimum_required with VERSION < 3.5
               sed -i.bak 's/cmake_minimum_required(VERSION [0-9]\+\.[0-9]\+/cmake_minimum_required(VERSION 3.5/' "$cmake_file"
+              # Show after
+              echo "  After:  $(grep cmake_minimum_required "$cmake_file" | head -1)"
+              # Verify change
+              if ! grep -q "cmake_minimum_required(VERSION 3.5" "$cmake_file"; then
+                echo "  ⚠️  WARNING: Failed to update $cmake_file"
+              fi
             fi
           done
+
+          echo "=== Verifying all cmake_minimum_required updates ==="
+          find hadoop-hdfs-project/hadoop-hdfs-native-client -name "CMakeLists.txt" -exec grep -H "cmake_minimum_required" {} \;
 
           echo "✅ Updated all HDFS cmake_minimum_required to VERSION 3.5"
 
