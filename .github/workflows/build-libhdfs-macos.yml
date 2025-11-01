@@ -331,6 +331,19 @@ jobs:
           patch -p1 < "$EXCEPTION_PATCH"
           echo "=== exception.c patch applied successfully ==="
 
+          # Apply OpenSSL 3.x compatibility patch
+          echo "=== Applying OpenSSL 3.x compatibility patch ==="
+          OPENSSL_PATCH="${GITHUB_WORKSPACE}/.github/patches/hadoop-3.3.6-openssl3-compat.patch"
+
+          if [ ! -f "$OPENSSL_PATCH" ]; then
+            echo "ERROR: Patch file not found: $OPENSSL_PATCH"
+            exit 1
+          fi
+
+          cd $HOME/hadoop-src
+          patch -p1 < "$OPENSSL_PATCH"
+          echo "=== OpenSSL 3.x compatibility patch applied successfully ==="
+
       # ============================================
       # STEP 9: Setup minimal build environment
       # ============================================
