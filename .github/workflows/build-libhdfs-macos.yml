@@ -256,15 +256,20 @@ jobs:
 
           cp "$CMAKE_FILE" "${CMAKE_FILE}.backup"
 
-          # Find line to insert patch after
-          LINE_NUM=$(grep -n "find_package(JNI REQUIRED)" "$CMAKE_FILE" | head -1 | cut -d: -f1)
+          # Find line to insert patch after - try multiple patterns
+          # Pattern 1: After include(HadoopJNI) - this is where JNI is configured
+          LINE_NUM=$(grep -n "include(HadoopJNI)" "$CMAKE_FILE" | head -1 | cut -d: -f1)
 
-          # Check if line was found
+          # Pattern 2: After find_package(ZLIB - alternative location
           if [ -z "$LINE_NUM" ]; then
-            echo "WARNING: 'find_package(JNI REQUIRED)' not found in $CMAKE_FILE"
-            echo "Trying alternative location..."
-            # Try to find project() or cmake_minimum_required as alternative
-            LINE_NUM=$(grep -n "project(" "$CMAKE_FILE" | head -1 | cut -d: -f1)
+            echo "INFO: 'include(HadoopJNI)' not found, trying find_package(ZLIB..."
+            LINE_NUM=$(grep -n "find_package(ZLIB" "$CMAKE_FILE" | head -1 | cut -d: -f1)
+          fi
+
+          # Pattern 3: After cmake_minimum_required - last resort
+          if [ -z "$LINE_NUM" ]; then
+            echo "INFO: 'find_package(ZLIB' not found, trying cmake_minimum_required..."
+            LINE_NUM=$(grep -n "cmake_minimum_required" "$CMAKE_FILE" | head -1 | cut -d: -f1)
           fi
 
           if [ -z "$LINE_NUM" ]; then
@@ -274,29 +279,17 @@ jobs:
             exit 1
           fi
 
-          echo "Inserting OpenSSL patch after line $LINE_NUM"
+          echo "✅ Found insertion point at line $LINE_NUM"
 
-          cat > /tmp/openssl_patch.txt << 'PATCH_EOF'
+          # Apply OpenSSL patch from separate file
+          PATCH_FILE="${GITHUB_WORKSPACE}/.github/patches/hadoop-3.3.6-macos-openssl.cmake"
 
-# Patch for macOS OpenSSL
-if(APPLE)
-  if(DEFINED ENV{OPENSSL_ROOT_DIR})
-    set(OPENSSL_ROOT_DIR $ENV{OPENSSL_ROOT_DIR})
-  elseif(EXISTS "/usr/local/opt/openssl@3")
-    set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl@3")
-  endif()
+          if [ ! -f "$PATCH_FILE" ]; then
+            echo "ERROR: Patch file not found: $PATCH_FILE"
+            exit 1
+          fi
 
-  if(OPENSSL_ROOT_DIR)
-    set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
-    set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib")
-    set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.dylib")
-    include_directories(${OPENSSL_INCLUDE_DIR})
-    message(STATUS "Using OpenSSL from: ${OPENSSL_ROOT_DIR}")
-  endif()
-endif()
-PATCH_EOF
-
-          awk -v line="$LINE_NUM" -v patch="$(cat /tmp/openssl_patch.txt)" '
+          awk -v line="$LINE_NUM" -v patch="$(cat $PATCH_FILE)" '
             NR==line {print; print patch; next}
             {print}
           ' "$CMAKE_FILE" > "${CMAKE_FILE}.patched"
