@@ -414,6 +414,7 @@ jobs:
             -Drequire.valgrind=false \
             -Drequire.snappy=false \
             -Drequire.zstd=false \
+            -Drequire.libhdfspp=false \
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-common.log
 
@@ -437,6 +438,7 @@ jobs:
             -Drequire.libwebhdfs=false \
             -Drequire.fuse=false \
             -Drequire.valgrind=false \
+            -Drequire.libhdfspp=false \
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-hdfs.log
 

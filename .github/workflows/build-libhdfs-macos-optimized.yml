@@ -286,6 +286,7 @@ EOF
             -Drequire.valgrind=false \
             -Drequire.snappy=false \
             -Drequire.zstd=false \
+            -Drequire.libhdfspp=false \
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-common.log || true
 
@@ -312,6 +313,7 @@ EOF
               -Drequire.valgrind=false \
               -Drequire.snappy=false \
               -Drequire.zstd=false \
+              -Drequire.libhdfspp=false \
               -Drequire.test.libhdfs=false \
               2>&1 | tee build-common.log
 
@@ -342,6 +344,7 @@ EOF
             -Drequire.libwebhdfs=false \
             -Drequire.fuse=false \
             -Drequire.valgrind=false \
+            -Drequire.libhdfspp=false \
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-hdfs.log
 
