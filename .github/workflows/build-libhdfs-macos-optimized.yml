@@ -98,10 +98,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-precompiled-${{ env.HADOOP_VERSION }}-v1
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v1
           restore-keys: |
-            ${{ runner.os }}-maven-precompiled-${{ env.HADOOP_VERSION }}-
-            ${{ runner.os }}-maven-precompiled-
+            ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-
+            ${{ runner.os }}-maven-optimized-hadoop-
 
       # ============================================
       # STEP 7: Download pre-compiled Hadoop JARs from Maven Central
@@ -378,10 +378,25 @@ EOF
           fi
 
           # Copy headers
-          if [ -d $HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/include ]; then
-            cp -r $HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/include/* \
-               $HOME/libhdfs-artifacts/headers/
-          fi
+          echo "=== Looking for headers ==="
+
+          # Try multiple possible locations
+          HEADER_LOCATIONS=(
+            "$HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/include"
+            "$HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/src/main/native/libhdfs"
+            "$HOME/hadoop-src/hadoop-common-project/hadoop-common/src/main/native/src/org/apache/hadoop/io/nativeio"
+          )
+
+          for location in "${HEADER_LOCATIONS[@]}"; do
+            echo "Checking: $location"
+            if [ -d "$location" ]; then
+              echo "  Found headers in: $location"
+              find "$location" -name "*.h" -exec cp {} $HOME/libhdfs-artifacts/headers/ \;
+            fi
+          done
+
+          echo "Headers collected:"
+          ls -la $HOME/libhdfs-artifacts/headers/
 
           # Copy pre-downloaded JARs (much faster than compiling!)
           echo "=== Using pre-compiled JARs from Maven Central ==="
@@ -580,4 +595,4 @@ EOF
         uses: actions/cache/save@v4
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-precompiled-${{ env.HADOOP_VERSION }}-v1
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v1
