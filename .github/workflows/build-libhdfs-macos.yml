@@ -238,20 +238,20 @@ jobs:
           echo "=== Cloning Hadoop ${HADOOP_VERSION} (shallow) ==="
           git clone --depth 1 --branch branch-${HADOOP_VERSION} \
             --single-branch \
-            https://github.com/apache/hadoop.git ~/hadoop-src
+            https://github.com/apache/hadoop.git $HOME/hadoop-src
 
-          cd ~/hadoop-src
+          cd $HOME/hadoop-src
           echo "Hadoop version: $(grep '<version>' pom.xml | head -1)"
 
           # Show repository size
-          du -sh ~/hadoop-src
+          du -sh $HOME/hadoop-src
 
       # ============================================
       # STEP 8: Apply minimal patch
       # ============================================
       - name: Apply macOS OpenSSL patch
         run: |
-          cd ~/hadoop-src
+          cd $HOME/hadoop-src
           CMAKE_FILE="hadoop-common-project/hadoop-common/src/CMakeLists.txt"
 
           # Check if file exists
@@ -321,8 +321,8 @@ jobs:
       # STEP 10: Build ONLY libhdfs (minimal)
       # ============================================
       - name: Build libhdfs only
-        working-directory: ~/hadoop-src
         run: |
+          cd $HOME/hadoop-src
           echo "=== Building libhdfs ONLY (minimal build) ==="
           echo "This will build only hadoop-common and hadoop-hdfs native libraries"
 
@@ -384,38 +384,38 @@ jobs:
         run: |
           echo "=== Collecting libhdfs artifacts ==="
 
-          mkdir -p ~/libhdfs-artifacts/native
-          mkdir -p ~/libhdfs-artifacts/jars
-          mkdir -p ~/libhdfs-artifacts/headers
+          mkdir -p $HOME/libhdfs-artifacts/native
+          mkdir -p $HOME/libhdfs-artifacts/jars
+          mkdir -p $HOME/libhdfs-artifacts/headers
 
           # Copy native libraries from hadoop-common
-          if [ -d ~/hadoop-src/hadoop-common-project/hadoop-common/target/native/target/usr/local/lib ]; then
-            cp ~/hadoop-src/hadoop-common-project/hadoop-common/target/native/target/usr/local/lib/*.dylib \
-               ~/libhdfs-artifacts/native/ 2>/dev/null || true
-            cp ~/hadoop-src/hadoop-common-project/hadoop-common/target/native/target/usr/local/lib/*.a \
-               ~/libhdfs-artifacts/native/ 2>/dev/null || true
+          if [ -d $HOME/hadoop-src/hadoop-common-project/hadoop-common/target/native/target/usr/local/lib ]; then
+            cp $HOME/hadoop-src/hadoop-common-project/hadoop-common/target/native/target/usr/local/lib/*.dylib \
+               $HOME/libhdfs-artifacts/native/ 2>/dev/null || true
+            cp $HOME/hadoop-src/hadoop-common-project/hadoop-common/target/native/target/usr/local/lib/*.a \
+               $HOME/libhdfs-artifacts/native/ 2>/dev/null || true
           fi
 
           # Copy libhdfs from hadoop-hdfs-native-client
-          if [ -d ~/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/lib ]; then
-            cp ~/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/lib/libhdfs.* \
-               ~/libhdfs-artifacts/native/
+          if [ -d $HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/lib ]; then
+            cp $HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/lib/libhdfs.* \
+               $HOME/libhdfs-artifacts/native/
           fi
 
           # Copy headers
-          if [ -d ~/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/include ]; then
-            cp -r ~/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/include/* \
-               ~/libhdfs-artifacts/headers/
+          if [ -d $HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/include ]; then
+            cp -r $HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-native-client/target/native/target/usr/local/include/* \
+               $HOME/libhdfs-artifacts/headers/
           fi
 
           # Copy required JARs for libhdfs
-          cp ~/hadoop-src/hadoop-common-project/hadoop-common/target/hadoop-common-*.jar \
-             ~/libhdfs-artifacts/jars/ 2>/dev/null || true
-          cp ~/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-client/target/hadoop-hdfs-client-*.jar \
-             ~/libhdfs-artifacts/jars/ 2>/dev/null || true
+          cp $HOME/hadoop-src/hadoop-common-project/hadoop-common/target/hadoop-common-*.jar \
+             $HOME/libhdfs-artifacts/jars/ 2>/dev/null || true
+          cp $HOME/hadoop-src/hadoop-hdfs-project/hadoop-hdfs-client/target/hadoop-hdfs-client-*.jar \
+             $HOME/libhdfs-artifacts/jars/ 2>/dev/null || true
 
           echo "=== Artifacts collected ==="
-          ls -lR ~/libhdfs-artifacts/
+          ls -lR $HOME/libhdfs-artifacts/
 
       # ============================================
       # STEP 12: Verify libhdfs
@@ -424,7 +424,7 @@ jobs:
         run: |
           echo "=== Verifying libhdfs artifacts ==="
 
-          cd ~/libhdfs-artifacts/native
+          cd $HOME/libhdfs-artifacts/native
 
           # Check libhdfs exists
           if [ ! -f "libhdfs.dylib" ]; then
@@ -479,9 +479,9 @@ jobs:
           java -version
 
           # Setup environment for libhdfs test
-          export HADOOP_HOME=~/hadoop-src
-          export CLASSPATH=$(find ~/libhdfs-artifacts/jars -name "*.jar" | tr '\n' ':')
-          export DYLD_LIBRARY_PATH=~/libhdfs-artifacts/native:$JAVA_HOME/lib/server
+          export HADOOP_HOME=$HOME/hadoop-src
+          export CLASSPATH=$(find $HOME/libhdfs-artifacts/jars -name "*.jar" | tr '\n' ':')
+          export DYLD_LIBRARY_PATH=$HOME/libhdfs-artifacts/native:$JAVA_HOME/lib/server
 
           # Create simple test
           cat > /tmp/test_libhdfs.c << 'EOF'
@@ -505,12 +505,12 @@ jobs:
 
           # Compile test
           gcc /tmp/test_libhdfs.c -o /tmp/test_libhdfs \
-            -I~/libhdfs-artifacts/headers \
+            -I$HOME/libhdfs-artifacts/headers \
             -I$JAVA_HOME/include \
             -I$JAVA_HOME/include/darwin \
-            -L~/libhdfs-artifacts/native \
+            -L$HOME/libhdfs-artifacts/native \
             -lhdfs \
-            -Wl,-rpath,~/libhdfs-artifacts/native
+            -Wl,-rpath,$HOME/libhdfs-artifacts/native
 
           # Run test
           /tmp/test_libhdfs
@@ -522,7 +522,7 @@ jobs:
       # ============================================
       - name: Create libhdfs package
         run: |
-          cd ~/libhdfs-artifacts
+          cd $HOME/libhdfs-artifacts
 
           # Create build info
           cat > BUILD_INFO.txt << EOF
@@ -573,13 +573,13 @@ jobs:
           echo "=== Disk Space Report ==="
           echo ""
           echo "Package size:"
-          ls -lh ~/libhdfs-artifacts/*.tar.gz
+          ls -lh $HOME/libhdfs-artifacts/*.tar.gz
           echo ""
           echo "Total artifacts size:"
-          du -sh ~/libhdfs-artifacts
+          du -sh $HOME/libhdfs-artifacts
           echo ""
           echo "Full Hadoop source size:"
-          du -sh ~/hadoop-src
+          du -sh $HOME/hadoop-src
           echo ""
           echo "Disk usage:"
           df -h /
@@ -596,23 +596,23 @@ jobs:
         with:
           name: libhdfs-${{ env.HADOOP_VERSION }}-macos-intel-x86_64
           path: |
-            ~/libhdfs-artifacts/*.tar.gz
-            ~/libhdfs-artifacts/*.sha256
-            ~/libhdfs-artifacts/BUILD_INFO.txt
+            $HOME/libhdfs-artifacts/*.tar.gz
+            $HOME/libhdfs-artifacts/*.sha256
+            $HOME/libhdfs-artifacts/BUILD_INFO.txt
           retention-days: 30
 
       - name: Upload native libraries
         uses: actions/upload-artifact@v4
         with:
           name: libhdfs-native-only-${{ env.HADOOP_VERSION }}
-          path: ~/libhdfs-artifacts/native/
+          path: $HOME/libhdfs-artifacts/native/
           retention-days: 30
 
       - name: Upload headers
         uses: actions/upload-artifact@v4
         with:
           name: libhdfs-headers-${{ env.HADOOP_VERSION }}
-          path: ~/libhdfs-artifacts/headers/
+          path: $HOME/libhdfs-artifacts/headers/
           retention-days: 30
 
       - name: Upload build logs (if needed)
@@ -621,7 +621,7 @@ jobs:
         with:
           name: libhdfs-build-logs
           path: |
-            ~/hadoop-src/build-*.log
+            $HOME/hadoop-src/build-*.log
           retention-days: 7
 
       # ============================================
@@ -647,7 +647,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Package Size" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          ls -lh ~/libhdfs-artifacts/*.tar.gz | awk '{print $5, $9}' >> $GITHUB_STEP_SUMMARY
+          ls -lh $HOME/libhdfs-artifacts/*.tar.gz | awk '{print $5, $9}' >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Usage" >> $GITHUB_STEP_SUMMARY
