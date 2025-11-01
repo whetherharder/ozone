@@ -295,10 +295,8 @@ jobs:
             exit 1
           fi
 
-          awk -v line="$LINE_NUM" -v patch="$(cat $PATCH_FILE)" '
-            NR==line {print; print patch; next}
-            {print}
-          ' "$CMAKE_FILE" > "${CMAKE_FILE}.patched"
+          # Use sed to insert patch file after LINE_NUM
+          sed "${LINE_NUM}r ${PATCH_FILE}" "$CMAKE_FILE" > "${CMAKE_FILE}.patched"
 
           mv "${CMAKE_FILE}.patched" "$CMAKE_FILE"
           echo "=== Patch applied successfully ==="
