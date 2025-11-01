@@ -250,7 +250,7 @@ jobs:
       # STEP 7.5: Cache Maven dependencies
       # ============================================
       - name: Cache Maven dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           # Key based on Hadoop version - dependencies don't change for same version
@@ -258,6 +258,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-hadoop-${{ env.HADOOP_VERSION }}-
             ${{ runner.os }}-maven-hadoop-
+          # Save cache even if build fails
+          save-always: true
 
       # ============================================
       # STEP 8: Apply minimal patch
@@ -344,16 +346,18 @@ jobs:
           patch -p1 < "$OPENSSL_PATCH"
           echo "=== OpenSSL 3.x compatibility patch applied successfully ==="
 
-          # Fix cmake_minimum_required version in HDFS native client
-          echo "=== Fixing CMake version in HDFS native client ==="
-          HDFS_CMAKE_FILE="hadoop-hdfs-project/hadoop-hdfs-native-client/src/CMakeLists.txt"
+          # Fix cmake_minimum_required version in ALL HDFS CMakeLists.txt files
+          echo "=== Fixing CMake version in HDFS native client (all CMakeLists.txt) ==="
 
-          if [ -f "$HDFS_CMAKE_FILE" ]; then
-            sed -i.bak 's/cmake_minimum_required(VERSION 3.1/cmake_minimum_required(VERSION 3.5/' "$HDFS_CMAKE_FILE"
-            echo "✅ Updated HDFS cmake_minimum_required to VERSION 3.5"
-          else
-            echo "⚠️  Warning: HDFS CMakeLists.txt not found at $HDFS_CMAKE_FILE"
-          fi
+          # Find all CMakeLists.txt files with VERSION 3.1 and update them
+          find hadoop-hdfs-project/hadoop-hdfs-native-client -name "CMakeLists.txt" \
+            -exec grep -l "cmake_minimum_required(VERSION 3.1" {} \; | \
+          while read -r cmake_file; do
+            echo "Updating $cmake_file"
+            sed -i.bak 's/cmake_minimum_required(VERSION 3.1/cmake_minimum_required(VERSION 3.5/' "$cmake_file"
+          done
+
+          echo "✅ Updated all HDFS cmake_minimum_required to VERSION 3.5"
 
       # ============================================
       # STEP 9: Setup minimal build environment
