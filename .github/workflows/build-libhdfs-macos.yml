@@ -147,8 +147,15 @@ jobs:
         run: |
           echo "=== Installing Protocol Buffers ==="
           brew install protobuf@21
+
+          # protobuf@21 is keg-only, need to add to PATH
+          export PATH="/usr/local/opt/protobuf@21/bin:$PATH"
+
           echo "Protobuf version:"
           protoc --version
+
+          # Add to PATH for subsequent steps
+          echo "/usr/local/opt/protobuf@21/bin" >> $GITHUB_PATH
 
       # ============================================
       # STEP 4: Setup Java (check installed first)
@@ -350,6 +357,10 @@ jobs:
           echo "PKG_CONFIG_PATH=/usr/local/opt/openssl@3/lib/pkgconfig:/usr/local/opt/protobuf@21/lib/pkgconfig" >> $GITHUB_ENV
           echo "PROTOBUF_HOME=/usr/local/opt/protobuf@21" >> $GITHUB_ENV
           echo "Protobuf_ROOT=/usr/local/opt/protobuf@21" >> $GITHUB_ENV
+
+          # Compiler flags for protobuf (keg-only)
+          echo "LDFLAGS=-L/usr/local/opt/protobuf@21/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/usr/local/opt/protobuf@21/include" >> $GITHUB_ENV
 
           # Reduced Maven memory for libhdfs-only build
           echo "MAVEN_OPTS=-Xms256m -Xmx1536m -XX:MaxMetaspaceSize=256m" >> $GITHUB_ENV

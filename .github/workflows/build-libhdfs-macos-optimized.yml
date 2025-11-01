@@ -70,10 +70,15 @@ jobs:
       - name: Verify Protocol Buffers installation
         run: |
           echo "=== Verifying Protocol Buffers from brew ==="
+          # protobuf@21 is keg-only, need to add to PATH
+          export PATH="/usr/local/opt/protobuf@21/bin:$PATH"
           protoc --version
           echo "Protobuf libraries:"
           ls -la /usr/local/opt/protobuf@21/lib/ | grep libprotobuf
           echo "✅ Protocol Buffers installed via brew"
+
+          # Add to PATH for subsequent steps
+          echo "/usr/local/opt/protobuf@21/bin" >> $GITHUB_PATH
 
       # ============================================
       # STEP 5: Setup OpenSSL
@@ -260,6 +265,10 @@ EOF
           export PROTOBUF_HOME=/usr/local/opt/protobuf@21
           export CMAKE_PREFIX_PATH=/usr/local/opt/openssl@3:/usr/local/opt/protobuf@21:/usr/local
           export Protobuf_ROOT=/usr/local/opt/protobuf@21
+
+          # Compiler flags for protobuf (keg-only)
+          export LDFLAGS="-L/usr/local/opt/protobuf@21/lib"
+          export CPPFLAGS="-I/usr/local/opt/protobuf@21/include"
 
           # Build hadoop-common native ONLY (skip Java compilation entirely)
           echo "=== Building hadoop-common native libraries ==="
