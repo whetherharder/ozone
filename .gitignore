@@ -9,6 +9,7 @@
 *.suo
 *.vcxproj.user
 *.patch
+!.github/patches/*.patch
 .idea
 .vscode
 .svn
