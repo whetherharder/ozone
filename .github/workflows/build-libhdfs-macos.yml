@@ -339,6 +339,9 @@ jobs:
       # ============================================
       - name: Build libhdfs only
         run: |
+          set -e  # Exit on any error
+          set -o pipefail  # Exit code from pipe is the exit code of first failed command
+
           cd $HOME/hadoop-src
           echo "=== Building libhdfs ONLY (minimal build) ==="
           echo "This will build only hadoop-common and hadoop-hdfs native libraries"
@@ -371,7 +374,13 @@ jobs:
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-common.log
 
-          echo "✅ hadoop-common built"
+          # Check if build succeeded
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ hadoop-common build FAILED"
+            exit 1
+          fi
+
+          echo "✅ hadoop-common built successfully"
 
           # Build HDFS native client (contains libhdfs)
           mvn install -pl hadoop-hdfs-project/hadoop-hdfs-native-client \
@@ -388,7 +397,13 @@ jobs:
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-hdfs.log
 
-          echo "✅ libhdfs built"
+          # Check if build succeeded
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ hadoop-hdfs-native-client build FAILED"
+            exit 1
+          fi
+
+          echo "✅ libhdfs built successfully"
 
           # Show disk space after build
           echo "=== Disk Space After Build ==="
