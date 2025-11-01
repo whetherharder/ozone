@@ -271,23 +271,23 @@ jobs:
 
           cat > /tmp/openssl_patch.txt << 'PATCH_EOF'
 
-# Patch for macOS OpenSSL
-if(APPLE)
-  if(DEFINED ENV{OPENSSL_ROOT_DIR})
-    set(OPENSSL_ROOT_DIR $ENV{OPENSSL_ROOT_DIR})
-  elseif(EXISTS "/usr/local/opt/openssl@3")
-    set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl@3")
-  endif()
+          # Patch for macOS OpenSSL
+          if(APPLE)
+            if(DEFINED ENV{OPENSSL_ROOT_DIR})
+              set(OPENSSL_ROOT_DIR $ENV{OPENSSL_ROOT_DIR})
+            elseif(EXISTS "/usr/local/opt/openssl@3")
+              set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl@3")
+            endif()
 
-  if(OPENSSL_ROOT_DIR)
-    set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
-    set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib")
-    set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.dylib")
-    include_directories(${OPENSSL_INCLUDE_DIR})
-    message(STATUS "Using OpenSSL from: ${OPENSSL_ROOT_DIR}")
-  endif()
-endif()
-PATCH_EOF
+            if(OPENSSL_ROOT_DIR)
+              set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
+              set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib")
+              set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.dylib")
+              include_directories(${OPENSSL_INCLUDE_DIR})
+              message(STATUS "Using OpenSSL from: ${OPENSSL_ROOT_DIR}")
+            endif()
+          endif()
+          PATCH_EOF
 
           awk -v line="$LINE_NUM" -v patch="$(cat /tmp/openssl_patch.txt)" '
             NR==line {print; print patch; next}
@@ -481,23 +481,23 @@ PATCH_EOF
 
           # Create simple test
           cat > /tmp/test_libhdfs.c << 'EOF'
-#include "hdfs.h"
-#include <stdio.h>
+          #include "hdfs.h"
+          #include <stdio.h>
 
-int main() {
-    printf("libhdfs smoke test\n");
-    printf("libhdfs version compiled successfully\n");
+          int main() {
+              printf("libhdfs smoke test\n");
+              printf("libhdfs version compiled successfully\n");
 
-    // Test that we can call hdfsBuilderConnect (will fail without HDFS running, which is OK)
-    struct hdfsBuilder *builder = hdfsNewBuilder();
-    if (builder) {
-        printf("✅ hdfsNewBuilder() works\n");
-        hdfsFreeBuilder(builder);
-    }
+              // Test that we can call hdfsBuilderConnect (will fail without HDFS running, which is OK)
+              struct hdfsBuilder *builder = hdfsNewBuilder();
+              if (builder) {
+                  printf("✅ hdfsNewBuilder() works\n");
+                  hdfsFreeBuilder(builder);
+              }
 
-    return 0;
-}
-EOF
+              return 0;
+          }
+          EOF
 
           # Compile test
           gcc /tmp/test_libhdfs.c -o /tmp/test_libhdfs \
@@ -522,33 +522,33 @@ EOF
 
           # Create build info
           cat > BUILD_INFO.txt << EOF
-Hadoop libhdfs Build Information
-================================
-Hadoop Version: ${HADOOP_VERSION}
-Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-Build Platform: macOS Intel (x86_64)
-Build Java: ${JAVA_BUILD_VERSION}
-Runtime Java: ${JAVA_RUNTIME_VERSION}
-Protocol Buffers: ${PROTOBUF_VERSION}
-Build Type: Minimal (libhdfs only)
-GitHub Run: ${{ github.run_number }}
+          Hadoop libhdfs Build Information
+          ================================
+          Hadoop Version: ${HADOOP_VERSION}
+          Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Build Platform: macOS Intel (x86_64)
+          Build Java: ${JAVA_BUILD_VERSION}
+          Runtime Java: ${JAVA_RUNTIME_VERSION}
+          Protocol Buffers: ${PROTOBUF_VERSION}
+          Build Type: Minimal (libhdfs only)
+          GitHub Run: ${{ github.run_number }}
 
-Contents:
-- native/libhdfs.dylib - HDFS C API library
-- native/libhadoop.* - Hadoop native library
-- headers/*.h - C header files
-- jars/*.jar - Required Java JARs
+          Contents:
+          - native/libhdfs.dylib - HDFS C API library
+          - native/libhadoop.* - Hadoop native library
+          - headers/*.h - C header files
+          - jars/*.jar - Required Java JARs
 
-Usage:
-  export HADOOP_HOME=/path/to/libhdfs
-  export CLASSPATH=\$(find \$HADOOP_HOME/jars -name "*.jar" | tr '\n' ':')
-  export DYLD_LIBRARY_PATH=\$HADOOP_HOME/native:\$JAVA_HOME/lib/server
+          Usage:
+            export HADOOP_HOME=/path/to/libhdfs
+            export CLASSPATH=\$(find \$HADOOP_HOME/jars -name "*.jar" | tr '\n' ':')
+            export DYLD_LIBRARY_PATH=\$HADOOP_HOME/native:\$JAVA_HOME/lib/server
 
-  gcc your_app.c -I\$HADOOP_HOME/headers \\
-      -I\$JAVA_HOME/include \\
-      -I\$JAVA_HOME/include/darwin \\
-      -L\$HADOOP_HOME/native -lhdfs
-EOF
+            gcc your_app.c -I\$HADOOP_HOME/headers \\
+                -I\$JAVA_HOME/include \\
+                -I\$JAVA_HOME/include/darwin \\
+                -L\$HADOOP_HOME/native -lhdfs
+          EOF
 
           # Create tar.gz
           tar -czf libhdfs-${HADOOP_VERSION}-macos-intel-x86_64.tar.gz \
