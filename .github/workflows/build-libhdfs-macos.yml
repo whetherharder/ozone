@@ -211,9 +211,11 @@ jobs:
           mkdir -p ~/protobuf-build
           cd ~/protobuf-build
 
-          wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-cpp-${PROTOBUF_VERSION}.tar.gz
-          tar -xzf protobuf-cpp-${PROTOBUF_VERSION}.tar.gz
-          cd protobuf-${PROTOBUF_VERSION}
+          # Version 3.21.12 uses v21.12 release tag and protobuf-all package
+          PROTOBUF_SHORT_VERSION="21.12"
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_SHORT_VERSION}/protobuf-all-${PROTOBUF_SHORT_VERSION}.tar.gz
+          tar -xzf protobuf-all-${PROTOBUF_SHORT_VERSION}.tar.gz
+          cd protobuf-${PROTOBUF_SHORT_VERSION}
 
           ./configure CC=clang CXX=clang++ \
             CXXFLAGS='-std=c++11 -stdlib=libc++ -O3' \
@@ -227,10 +229,13 @@ jobs:
       - name: Verify Protocol Buffers
         run: |
           protoc --version
-          if [[ "$(protoc --version)" != *"3.21.12"* ]]; then
-            echo "ERROR: Wrong protoc version!"
+          # Version can be shown as either "3.21.12" or "21.12"
+          VERSION_OUTPUT=$(protoc --version)
+          if [[ "$VERSION_OUTPUT" != *"3.21.12"* ]] && [[ "$VERSION_OUTPUT" != *"21.12"* ]]; then
+            echo "ERROR: Wrong protoc version! Expected 3.21.12 or 21.12, got: $VERSION_OUTPUT"
             exit 1
           fi
+          echo "✅ Protocol Buffers version verified"
 
       # ============================================
       # STEP 6: Setup OpenSSL
