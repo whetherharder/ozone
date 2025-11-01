@@ -1,0 +1,11 @@
+--- a/hadoop-common-project/hadoop-common/src/main/native/src/exception.c
++++ b/hadoop-common-project/hadoop-common/src/main/native/src/exception.c
+@@ -111,7 +111,7 @@ jthrowable newExceptionV(JNIEnv* env, const char *name,
+   return jthr;
+ }
+
+-#if defined(__sun) || defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 32)
++#if defined(__sun) || (defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 32))
+ #define HAVE_STRERROR_R_INT
+ #endif
+

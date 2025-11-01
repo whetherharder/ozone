@@ -316,7 +316,20 @@ jobs:
           sed "${LINE_NUM}r ${PATCH_FILE}" "$CMAKE_FILE" > "${CMAKE_FILE}.patched"
 
           mv "${CMAKE_FILE}.patched" "$CMAKE_FILE"
-          echo "=== Patch applied successfully ==="
+          echo "=== CMake patch applied successfully ==="
+
+          # Apply exception.c patch for macOS
+          echo "=== Applying exception.c patch for macOS ==="
+          EXCEPTION_PATCH="${GITHUB_WORKSPACE}/.github/patches/hadoop-3.3.6-exception-macos.patch"
+
+          if [ ! -f "$EXCEPTION_PATCH" ]; then
+            echo "ERROR: Patch file not found: $EXCEPTION_PATCH"
+            exit 1
+          fi
+
+          cd $HOME/hadoop-src
+          patch -p1 < "$EXCEPTION_PATCH"
+          echo "=== exception.c patch applied successfully ==="
 
       # ============================================
       # STEP 9: Setup minimal build environment
