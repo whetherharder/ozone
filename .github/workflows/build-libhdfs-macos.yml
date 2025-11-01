@@ -676,23 +676,23 @@ jobs:
         with:
           name: libhdfs-${{ env.HADOOP_VERSION }}-macos-intel-x86_64
           path: |
-            $HOME/libhdfs-artifacts/*.tar.gz
-            $HOME/libhdfs-artifacts/*.sha256
-            $HOME/libhdfs-artifacts/BUILD_INFO.txt
+            ~/libhdfs-artifacts/*.tar.gz
+            ~/libhdfs-artifacts/*.sha256
+            ~/libhdfs-artifacts/BUILD_INFO.txt
           retention-days: 30
 
       - name: Upload native libraries
         uses: actions/upload-artifact@v4
         with:
           name: libhdfs-native-only-${{ env.HADOOP_VERSION }}
-          path: $HOME/libhdfs-artifacts/native/
+          path: ~/libhdfs-artifacts/native/
           retention-days: 30
 
       - name: Upload headers
         uses: actions/upload-artifact@v4
         with:
           name: libhdfs-headers-${{ env.HADOOP_VERSION }}
-          path: $HOME/libhdfs-artifacts/headers/
+          path: ~/libhdfs-artifacts/headers/
           retention-days: 30
 
       - name: Upload build logs (if needed)
@@ -701,7 +701,7 @@ jobs:
         with:
           name: libhdfs-build-logs
           path: |
-            $HOME/hadoop-src/build-*.log
+            ~/hadoop-src/build-*.log
           retention-days: 7
 
       # ============================================
