@@ -95,7 +95,20 @@ jobs:
           fi
 
       # ============================================
-      # STEP 6: Download pre-compiled Hadoop JARs from Maven Central
+      # STEP 6: Restore Maven cache for pre-compiled JARs
+      # ============================================
+      - name: Restore Maven dependencies cache
+        id: cache-maven-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-precompiled-${{ env.HADOOP_VERSION }}-v1
+          restore-keys: |
+            ${{ runner.os }}-maven-precompiled-${{ env.HADOOP_VERSION }}-
+            ${{ runner.os }}-maven-precompiled-
+
+      # ============================================
+      # STEP 7: Download pre-compiled Hadoop JARs from Maven Central
       # ============================================
       - name: Download pre-compiled Hadoop JARs from Maven Central
         run: |
@@ -161,7 +174,7 @@ EOF
           ls -lh *.jar | head -20
 
       # ============================================
-      # STEP 7: Clone Hadoop source (for native code only)
+      # STEP 8: Clone Hadoop source (for native code only)
       # ============================================
       - name: Clone Hadoop repository (shallow - for native code only)
         run: |
@@ -176,7 +189,7 @@ EOF
           echo "Hadoop version: $(grep '<version>' pom.xml | head -1)"
 
       # ============================================
-      # STEP 8: Apply patches
+      # STEP 9: Apply patches
       # ============================================
       - name: Apply macOS compatibility patches
         run: |
@@ -218,7 +231,7 @@ EOF
           echo "✅ Updated all HDFS cmake_minimum_required to VERSION 3.5"
 
       # ============================================
-      # STEP 9: Build ONLY native libraries (NO Java compilation!)
+      # STEP 10: Build ONLY native libraries (NO Java compilation!)
       # ============================================
       - name: Build native libraries only (skip all Java compilation)
         run: |
@@ -321,7 +334,7 @@ EOF
           echo "✅ libhdfs built successfully"
 
       # ============================================
-      # STEP 10: Collect artifacts
+      # STEP 11: Collect artifacts
       # ============================================
       - name: Collect libhdfs artifacts
         run: |
@@ -362,7 +375,7 @@ EOF
           ls -lh $HOME/libhdfs-artifacts/jars/ | head -10
 
       # ============================================
-      # STEP 11: Verify libhdfs
+      # STEP 12: Verify libhdfs
       # ============================================
       - name: Verify libhdfs artifacts
         run: |
@@ -399,7 +412,7 @@ EOF
           otool -L libhdfs.dylib
 
       # ============================================
-      # STEP 12: Test with Java 17
+      # STEP 13: Test with Java 17
       # ============================================
       - name: Test libhdfs with Java 17
         run: |
@@ -446,7 +459,7 @@ EOF
           echo "✅ libhdfs test passed with pre-compiled JARs!"
 
       # ============================================
-      # STEP 13: Create package
+      # STEP 14: Create package
       # ============================================
       - name: Create libhdfs package
         run: |
@@ -496,7 +509,7 @@ EOF
           ls -lh *.tar.gz*
 
       # ============================================
-      # STEP 14: Upload artifacts
+      # STEP 15: Upload artifacts
       # ============================================
       - name: Upload libhdfs package
         uses: actions/upload-artifact@v4
@@ -516,7 +529,7 @@ EOF
           retention-days: 30
 
       # ============================================
-      # STEP 15: Summary
+      # STEP 16: Summary
       # ============================================
       - name: Build summary
         if: success()
@@ -537,3 +550,14 @@ EOF
           echo "- \`libhadoop.dylib/a\` - Hadoop native library" >> $GITHUB_STEP_SUMMARY
           echo "- C header files" >> $GITHUB_STEP_SUMMARY
           echo "- Pre-compiled Java JARs from Maven Central" >> $GITHUB_STEP_SUMMARY
+
+      # ============================================
+      # STEP 17: Save Maven cache (always run, even on failure)
+      # ============================================
+      - name: Save Maven dependencies cache
+        id: cache-maven-save
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-precompiled-${{ env.HADOOP_VERSION }}-v1
