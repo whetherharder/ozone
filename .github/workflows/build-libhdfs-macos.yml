@@ -192,50 +192,27 @@ jobs:
           java -version
 
       # ============================================
-      # STEP 5: Protocol Buffers (with cache)
+      # STEP 5: Protocol Buffers (install prebuilt)
       # ============================================
-      - name: Cache Protocol Buffers
-        id: cache-protobuf
-        uses: actions/cache@v3
-        with:
-          path: |
-            /usr/local/bin/protoc
-            /usr/local/include/google
-            /usr/local/lib/libproto*
-          key: ${{ runner.os }}-protobuf-${{ env.PROTOBUF_VERSION }}-intel-v3
-
-      - name: Build Protocol Buffers (if not cached)
-        if: steps.cache-protobuf.outputs.cache-hit != 'true'
+      - name: Install Protocol Buffers via Homebrew
         run: |
-          echo "=== Building Protocol Buffers $PROTOBUF_VERSION ==="
-          mkdir -p ~/protobuf-build
-          cd ~/protobuf-build
+          echo "=== Installing Protocol Buffers via Homebrew ==="
 
-          # Version 3.21.12 uses v21.12 release tag and protobuf-all package
-          PROTOBUF_SHORT_VERSION="21.12"
-          wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_SHORT_VERSION}/protobuf-all-${PROTOBUF_SHORT_VERSION}.tar.gz
-          tar -xzf protobuf-all-${PROTOBUF_SHORT_VERSION}.tar.gz
-          cd protobuf-${PROTOBUF_SHORT_VERSION}
-
-          ./configure CC=clang CXX=clang++ \
-            CXXFLAGS='-std=c++11 -stdlib=libc++ -O3' \
-            LDFLAGS='-stdlib=libc++' \
-            LIBS="-lc++ -lc++abi"
-
-          make -j$(sysctl -n hw.ncpu)
-          sudo make install
-          sudo update_dyld_shared_cache || true
-
-      - name: Verify Protocol Buffers
-        run: |
-          protoc --version
-          # Version can be shown as either "3.21.12" or "21.12"
-          VERSION_OUTPUT=$(protoc --version)
-          if [[ "$VERSION_OUTPUT" != *"3.21.12"* ]] && [[ "$VERSION_OUTPUT" != *"21.12"* ]]; then
-            echo "ERROR: Wrong protoc version! Expected 3.21.12 or 21.12, got: $VERSION_OUTPUT"
-            exit 1
+          # Check if protobuf is already installed
+          if brew list protobuf@3 &> /dev/null; then
+            echo "✅ protobuf@3 already installed"
+            brew info protobuf@3
+          else
+            echo "Installing protobuf@3..."
+            brew install protobuf@3
           fi
-          echo "✅ Protocol Buffers version verified"
+
+          # Link protobuf@3 binaries
+          brew link protobuf@3 --force || true
+
+          # Verify installation
+          protoc --version
+          echo "✅ Protocol Buffers installed"
 
       # ============================================
       # STEP 6: Setup OpenSSL
@@ -270,29 +247,54 @@ jobs:
         run: |
           cd ~/hadoop-src
           CMAKE_FILE="hadoop-common-project/hadoop-common/src/CMakeLists.txt"
+
+          # Check if file exists
+          if [ ! -f "$CMAKE_FILE" ]; then
+            echo "ERROR: CMakeLists.txt not found at $CMAKE_FILE"
+            exit 1
+          fi
+
           cp "$CMAKE_FILE" "${CMAKE_FILE}.backup"
 
-          LINE_NUM=$(grep -n "find_package(JNI REQUIRED)" "$CMAKE_FILE" | cut -d: -f1)
+          # Find line to insert patch after
+          LINE_NUM=$(grep -n "find_package(JNI REQUIRED)" "$CMAKE_FILE" | head -1 | cut -d: -f1)
+
+          # Check if line was found
+          if [ -z "$LINE_NUM" ]; then
+            echo "WARNING: 'find_package(JNI REQUIRED)' not found in $CMAKE_FILE"
+            echo "Trying alternative location..."
+            # Try to find project() or cmake_minimum_required as alternative
+            LINE_NUM=$(grep -n "project(" "$CMAKE_FILE" | head -1 | cut -d: -f1)
+          fi
+
+          if [ -z "$LINE_NUM" ]; then
+            echo "ERROR: Could not find suitable location to insert OpenSSL patch"
+            echo "Content of CMakeLists.txt (first 50 lines):"
+            head -50 "$CMAKE_FILE"
+            exit 1
+          fi
+
+          echo "Inserting OpenSSL patch after line $LINE_NUM"
 
           cat > /tmp/openssl_patch.txt << 'PATCH_EOF'
 
-          # Patch for macOS OpenSSL
-          if(APPLE)
-            if(DEFINED ENV{OPENSSL_ROOT_DIR})
-              set(OPENSSL_ROOT_DIR $ENV{OPENSSL_ROOT_DIR})
-            elseif(EXISTS "/usr/local/opt/openssl@3")
-              set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl@3")
-            endif()
+# Patch for macOS OpenSSL
+if(APPLE)
+  if(DEFINED ENV{OPENSSL_ROOT_DIR})
+    set(OPENSSL_ROOT_DIR $ENV{OPENSSL_ROOT_DIR})
+  elseif(EXISTS "/usr/local/opt/openssl@3")
+    set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl@3")
+  endif()
 
-            if(OPENSSL_ROOT_DIR)
-              set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
-              set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib")
-              set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.dylib")
-              include_directories(${OPENSSL_INCLUDE_DIR})
-              message(STATUS "Using OpenSSL from: ${OPENSSL_ROOT_DIR}")
-            endif()
-          endif()
-          PATCH_EOF
+  if(OPENSSL_ROOT_DIR)
+    set(OPENSSL_INCLUDE_DIR "${OPENSSL_ROOT_DIR}/include")
+    set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libcrypto.dylib")
+    set(OPENSSL_SSL_LIBRARY "${OPENSSL_ROOT_DIR}/lib/libssl.dylib")
+    include_directories(${OPENSSL_INCLUDE_DIR})
+    message(STATUS "Using OpenSSL from: ${OPENSSL_ROOT_DIR}")
+  endif()
+endif()
+PATCH_EOF
 
           awk -v line="$LINE_NUM" -v patch="$(cat /tmp/openssl_patch.txt)" '
             NR==line {print; print patch; next}
@@ -300,7 +302,7 @@ jobs:
           ' "$CMAKE_FILE" > "${CMAKE_FILE}.patched"
 
           mv "${CMAKE_FILE}.patched" "$CMAKE_FILE"
-          echo "=== Patch applied ==="
+          echo "=== Patch applied successfully ==="
 
       # ============================================
       # STEP 9: Setup minimal build environment
