@@ -344,6 +344,17 @@ jobs:
           patch -p1 < "$OPENSSL_PATCH"
           echo "=== OpenSSL 3.x compatibility patch applied successfully ==="
 
+          # Fix cmake_minimum_required version in HDFS native client
+          echo "=== Fixing CMake version in HDFS native client ==="
+          HDFS_CMAKE_FILE="hadoop-hdfs-project/hadoop-hdfs-native-client/src/CMakeLists.txt"
+
+          if [ -f "$HDFS_CMAKE_FILE" ]; then
+            sed -i.bak 's/cmake_minimum_required(VERSION 3.1/cmake_minimum_required(VERSION 3.5/' "$HDFS_CMAKE_FILE"
+            echo "✅ Updated HDFS cmake_minimum_required to VERSION 3.5"
+          else
+            echo "⚠️  Warning: HDFS CMakeLists.txt not found at $HDFS_CMAKE_FILE"
+          fi
+
       # ============================================
       # STEP 9: Setup minimal build environment
       # ============================================
