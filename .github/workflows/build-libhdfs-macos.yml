@@ -192,23 +192,29 @@ jobs:
           java -version
 
       # ============================================
-      # STEP 5: Protocol Buffers (install prebuilt)
+      # STEP 5: Protocol Buffers (install prebuilt binary)
       # ============================================
-      - name: Install Protocol Buffers via Homebrew
+      - name: Install Protocol Buffers prebuilt binary
         run: |
-          echo "=== Installing Protocol Buffers via Homebrew ==="
+          echo "=== Installing Protocol Buffers 21.12 prebuilt binary ==="
 
-          # Check if protobuf is already installed
-          if brew list protobuf@3 &> /dev/null; then
-            echo "✅ protobuf@3 already installed"
-            brew info protobuf@3
-          else
-            echo "Installing protobuf@3..."
-            brew install protobuf@3
-          fi
+          cd /tmp
 
-          # Link protobuf@3 binaries
-          brew link protobuf@3 --force || true
+          # Download prebuilt binary for macOS x86_64
+          PROTOC_VERSION="21.12"
+          PROTOC_ZIP="protoc-${PROTOC_VERSION}-osx-x86_64.zip"
+
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}
+
+          # Extract
+          unzip -q ${PROTOC_ZIP} -d protoc
+
+          # Install to /usr/local
+          sudo cp protoc/bin/protoc /usr/local/bin/
+          sudo cp -r protoc/include/* /usr/local/include/
+
+          # Cleanup
+          rm -rf protoc ${PROTOC_ZIP}
 
           # Verify installation
           protoc --version
