@@ -247,6 +247,19 @@ jobs:
           du -sh $HOME/hadoop-src
 
       # ============================================
+      # STEP 7.5: Cache Maven dependencies
+      # ============================================
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          # Key based on Hadoop version - dependencies don't change for same version
+          key: ${{ runner.os }}-maven-hadoop-${{ env.HADOOP_VERSION }}-v1
+          restore-keys: |
+            ${{ runner.os }}-maven-hadoop-${{ env.HADOOP_VERSION }}-
+            ${{ runner.os }}-maven-hadoop-
+
+      # ============================================
       # STEP 8: Apply minimal patch
       # ============================================
       - name: Apply macOS OpenSSL patch
