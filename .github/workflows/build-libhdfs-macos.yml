@@ -262,6 +262,10 @@ jobs:
 
           cp "$CMAKE_FILE" "${CMAKE_FILE}.backup"
 
+          # Fix cmake_minimum_required version (CMake < 3.5 is not supported anymore)
+          sed -i.bak 's/cmake_minimum_required(VERSION 3.1/cmake_minimum_required(VERSION 3.5/' "$CMAKE_FILE"
+          echo "✅ Updated cmake_minimum_required to VERSION 3.5"
+
           # Find line to insert patch after - try multiple patterns
           # Pattern 1: After include(HadoopJNI) - this is where JNI is configured
           LINE_NUM=$(grep -n "include(HadoopJNI)" "$CMAKE_FILE" | head -1 | cut -d: -f1)
