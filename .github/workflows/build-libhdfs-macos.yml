@@ -247,10 +247,11 @@ jobs:
           du -sh $HOME/hadoop-src
 
       # ============================================
-      # STEP 7.5: Cache Maven dependencies
+      # STEP 7.5: Restore Maven dependencies cache
       # ============================================
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
+      - name: Restore Maven dependencies cache
+        id: cache-maven-restore
+        uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository
           # Key based on Hadoop version - dependencies don't change for same version
@@ -258,8 +259,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-hadoop-${{ env.HADOOP_VERSION }}-
             ${{ runner.os }}-maven-hadoop-
-          # Save cache even if build fails
-          save-always: true
 
       # ============================================
       # STEP 8: Apply minimal patch
@@ -741,3 +740,14 @@ jobs:
           echo "    -I\$JAVA_HOME/include/darwin \\" >> $GITHUB_STEP_SUMMARY
           echo "    -L\$HADOOP_HOME/native -lhdfs" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      # ============================================
+      # Save Maven cache (always run, even on failure)
+      # ============================================
+      - name: Save Maven dependencies cache
+        id: cache-maven-save
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-hadoop-${{ env.HADOOP_VERSION }}-v1
