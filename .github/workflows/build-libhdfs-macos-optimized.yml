@@ -62,27 +62,18 @@ jobs:
         run: |
           echo "=== Installing build dependencies ==="
           brew install maven cmake autoconf automake libtool
-          brew install openssl@3 snappy zlib lz4 zstd
+          brew install openssl@3 snappy zlib lz4 zstd protobuf@21
 
       # ============================================
-      # STEP 4: Install Protocol Buffers
+      # STEP 4: Verify Protocol Buffers installation
       # ============================================
-      - name: Install Protocol Buffers prebuilt binary
+      - name: Verify Protocol Buffers installation
         run: |
-          echo "=== Installing Protocol Buffers 21.12 prebuilt binary ==="
-
-          cd /tmp
-          PROTOC_VERSION="21.12"
-          PROTOC_ZIP="protoc-${PROTOC_VERSION}-osx-x86_64.zip"
-
-          wget https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/${PROTOC_ZIP}
-          unzip -q ${PROTOC_ZIP} -d protoc
-          sudo cp protoc/bin/protoc /usr/local/bin/
-          sudo cp -r protoc/include/* /usr/local/include/
-          rm -rf protoc ${PROTOC_ZIP}
-
+          echo "=== Verifying Protocol Buffers from brew ==="
           protoc --version
-          echo "✅ Protocol Buffers installed"
+          echo "Protobuf libraries:"
+          ls -la /usr/local/opt/protobuf@21/lib/ | grep libprotobuf
+          echo "✅ Protocol Buffers installed via brew"
 
       # ============================================
       # STEP 5: Setup OpenSSL
@@ -265,9 +256,10 @@ EOF
           export OPENSSL_ROOT_DIR=/usr/local/opt/openssl@3
           export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl@3/include
           export OPENSSL_LIBRARIES=/usr/local/opt/openssl@3/lib
-          export PKG_CONFIG_PATH=/usr/local/opt/openssl@3/lib/pkgconfig
-          export PROTOBUF_HOME=/usr/local
-          export CMAKE_PREFIX_PATH=/usr/local/opt/openssl@3:/usr/local
+          export PKG_CONFIG_PATH=/usr/local/opt/openssl@3/lib/pkgconfig:/usr/local/opt/protobuf@21/lib/pkgconfig
+          export PROTOBUF_HOME=/usr/local/opt/protobuf@21
+          export CMAKE_PREFIX_PATH=/usr/local/opt/openssl@3:/usr/local/opt/protobuf@21:/usr/local
+          export Protobuf_ROOT=/usr/local/opt/protobuf@21
 
           # Build hadoop-common native ONLY (skip Java compilation entirely)
           echo "=== Building hadoop-common native libraries ==="
@@ -286,7 +278,6 @@ EOF
             -Drequire.valgrind=false \
             -Drequire.snappy=false \
             -Drequire.zstd=false \
-            -Drequire.libhdfspp=false \
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-common.log || true
 
@@ -313,7 +304,6 @@ EOF
               -Drequire.valgrind=false \
               -Drequire.snappy=false \
               -Drequire.zstd=false \
-              -Drequire.libhdfspp=false \
               -Drequire.test.libhdfs=false \
               2>&1 | tee build-common.log
 
@@ -344,7 +334,6 @@ EOF
             -Drequire.libwebhdfs=false \
             -Drequire.fuse=false \
             -Drequire.valgrind=false \
-            -Drequire.libhdfspp=false \
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-hdfs.log
 
