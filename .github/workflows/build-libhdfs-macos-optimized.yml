@@ -19,9 +19,70 @@ env:
   JAVA_RUNTIME_VERSION: '17'
 
 jobs:
+  # ============================================
+  # JOB 1: Setup Maven cache (runs once)
+  # ============================================
+  setup-maven:
+    name: Setup Maven dependencies cache
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Restore Maven cache
+        id: cache-maven-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v2
+          restore-keys: |
+            ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-
+            ${{ runner.os }}-maven-optimized-hadoop-
+            ${{ runner.os }}-maven-optimized-
+
+      - name: Download Maven dependencies
+        if: steps.cache-maven-restore.outputs.cache-hit != 'true'
+        run: |
+          echo "=== Downloading Maven dependencies for Hadoop ${{ env.HADOOP_VERSION }} ==="
+
+          mkdir -p $HOME/maven-setup
+          cd $HOME/maven-setup
+
+          # Create POM to download all dependencies
+          cp ${GITHUB_WORKSPACE}/.github/templates/pom-download-jars.xml.template pom.xml
+          sed -i '' "s/{{HADOOP_VERSION}}/${{ env.HADOOP_VERSION }}/g" pom.xml
+
+          # Download all dependencies
+          mvn dependency:go-offline -B
+          mvn dependency:copy-dependencies -DoutputDirectory=. -DincludeScope=runtime
+
+          echo "✅ Maven dependencies downloaded"
+
+      - name: Save Maven cache
+        if: steps.cache-maven-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v2
+
+  # ============================================
+  # JOB 2: Build libhdfs (runs in parallel after setup-maven)
+  # ============================================
   build-libhdfs:
     name: Build libhdfs (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
+    needs: setup-maven
 
     strategy:
       matrix:
@@ -129,13 +190,9 @@ jobs:
           fi
 
       # ============================================
-      # STEP 6: Restore Maven cache for pre-compiled JARs
+      # STEP 6: Restore Maven cache (prepared by setup-maven job)
       # ============================================
-      # Note: Cache is shared between architectures but works across workflow runs, not within.
-      # First run: both jobs download dependencies (no cache exists yet)
-      # Second+ runs: both jobs restore cache (Intel job updates it at the end)
       - name: Restore Maven dependencies cache
-        id: cache-maven-restore
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -590,16 +647,3 @@ jobs:
           echo "- \`libhdfs.a\` - HDFS C API library (static)" >> $GITHUB_STEP_SUMMARY
           echo "- \`libhadoop.dylib\` - Hadoop native library (dynamic)" >> $GITHUB_STEP_SUMMARY
           echo "- \`libhadoop.a\` - Hadoop native library (static)" >> $GITHUB_STEP_SUMMARY
-
-      # ============================================
-      # STEP 17: Save Maven cache (always run, even on failure)
-      # ============================================
-      - name: Save Maven dependencies cache
-        id: cache-maven-save
-        if: always() && matrix.arch == 'intel-x86_64'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ~/.m2/repository
-            ~/.m2/wrapper
-          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v2
