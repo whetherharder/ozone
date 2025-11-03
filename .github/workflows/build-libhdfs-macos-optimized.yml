@@ -263,6 +263,13 @@ jobs:
           SNAPPY_PREFIX=$(brew --prefix snappy 2>/dev/null || echo "$BREW_PREFIX")
           LZ4_PREFIX=$(brew --prefix lz4 2>/dev/null || echo "$BREW_PREFIX")
           ZSTD_PREFIX=$(brew --prefix zstd 2>/dev/null || echo "$BREW_PREFIX")
+          # ZLIB - prefer Homebrew version if available, otherwise use system
+          if brew list zlib &>/dev/null; then
+            ZLIB_PREFIX=$(brew --prefix zlib)
+          else
+            # Use system zlib paths
+            ZLIB_PREFIX="/usr"
+          fi
 
           echo "Homebrew prefix: $BREW_PREFIX"
           echo "OpenSSL prefix: $OPENSSL_PREFIX"
@@ -270,22 +277,40 @@ jobs:
           echo "Snappy prefix: $SNAPPY_PREFIX"
           echo "LZ4 prefix: $LZ4_PREFIX"
           echo "Zstd prefix: $ZSTD_PREFIX"
+          echo "Zlib prefix: $ZLIB_PREFIX"
 
           # Setup environment
           export OPENSSL_ROOT_DIR=$OPENSSL_PREFIX
           export OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include
           export OPENSSL_LIBRARIES=$OPENSSL_PREFIX/lib
 
+          # ZLIB configuration for CMake
+          export ZLIB_ROOT=$ZLIB_PREFIX
+          if [ "$ZLIB_PREFIX" = "/usr" ]; then
+            # System zlib
+            export ZLIB_INCLUDE_DIR=/usr/include
+            export ZLIB_LIBRARY=/usr/lib/libz.dylib
+          else
+            # Homebrew zlib
+            export ZLIB_INCLUDE_DIR=$ZLIB_PREFIX/include
+            export ZLIB_LIBRARY=$ZLIB_PREFIX/lib/libz.dylib
+          fi
+
+          echo "ZLIB configuration:"
+          echo "  ZLIB_ROOT=$ZLIB_ROOT"
+          echo "  ZLIB_INCLUDE_DIR=$ZLIB_INCLUDE_DIR"
+          echo "  ZLIB_LIBRARY=$ZLIB_LIBRARY"
+
           # Add all compression libraries to PKG_CONFIG_PATH
           export PKG_CONFIG_PATH=$OPENSSL_PREFIX/lib/pkgconfig:$PROTOBUF_PREFIX/lib/pkgconfig:$SNAPPY_PREFIX/lib/pkgconfig:$LZ4_PREFIX/lib/pkgconfig:$ZSTD_PREFIX/lib/pkgconfig
 
           export PROTOBUF_HOME=$PROTOBUF_PREFIX
-          export CMAKE_PREFIX_PATH=$OPENSSL_PREFIX:$PROTOBUF_PREFIX:$SNAPPY_PREFIX:$LZ4_PREFIX:$ZSTD_PREFIX:$BREW_PREFIX
+          export CMAKE_PREFIX_PATH=$OPENSSL_PREFIX:$PROTOBUF_PREFIX:$SNAPPY_PREFIX:$LZ4_PREFIX:$ZSTD_PREFIX:$ZLIB_PREFIX:$BREW_PREFIX
           export Protobuf_ROOT=$PROTOBUF_PREFIX
 
           # Compiler flags for all keg-only libraries
-          export LDFLAGS="-L$PROTOBUF_PREFIX/lib -L$SNAPPY_PREFIX/lib -L$LZ4_PREFIX/lib -L$ZSTD_PREFIX/lib"
-          export CPPFLAGS="-I$PROTOBUF_PREFIX/include -I$SNAPPY_PREFIX/include -I$LZ4_PREFIX/include -I$ZSTD_PREFIX/include"
+          export LDFLAGS="-L$PROTOBUF_PREFIX/lib -L$SNAPPY_PREFIX/lib -L$LZ4_PREFIX/lib -L$ZSTD_PREFIX/lib -L$ZLIB_PREFIX/lib"
+          export CPPFLAGS="-I$PROTOBUF_PREFIX/include -I$SNAPPY_PREFIX/include -I$LZ4_PREFIX/include -I$ZSTD_PREFIX/include -I$ZLIB_PREFIX/include"
 
           # Build hadoop-common native ONLY (skip Java compilation entirely)
           echo "=== Building hadoop-common native libraries ==="
