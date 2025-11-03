@@ -136,7 +136,8 @@ jobs:
 
           # Use pom.xml template from repository
           cp ${GITHUB_WORKSPACE}/.github/templates/pom-download-jars.xml.template pom.xml
-          sed -i "s/{{HADOOP_VERSION}}/${HADOOP_VERSION}/g" pom.xml
+          # macOS sed requires backup extension argument (use empty string for no backup)
+          sed -i '' "s/{{HADOOP_VERSION}}/${HADOOP_VERSION}/g" pom.xml
 
           # Download JARs with dependencies
           mvn dependency:copy-dependencies -DoutputDirectory=. -DincludeScope=runtime
@@ -472,14 +473,15 @@ jobs:
 
           # Use BUILD_INFO template from repository
           cp ${GITHUB_WORKSPACE}/.github/templates/BUILD_INFO.txt.template BUILD_INFO.txt
-          sed -i "s/{{HADOOP_VERSION}}/${HADOOP_VERSION}/g" BUILD_INFO.txt
-          sed -i "s/{{BUILD_DATE}}/$(date -u +"%Y-%m-%d %H:%M:%S UTC")/g" BUILD_INFO.txt
-          sed -i "s/{{ARCH}}/${{ matrix.arch }}/g" BUILD_INFO.txt
-          sed -i "s/{{ARCH_NAME}}/${{ matrix.arch_name }}/g" BUILD_INFO.txt
-          sed -i "s/{{JAVA_BUILD_VERSION}}/${JAVA_BUILD_VERSION}/g" BUILD_INFO.txt
-          sed -i "s/{{JAVA_RUNTIME_VERSION}}/${JAVA_RUNTIME_VERSION}/g" BUILD_INFO.txt
-          sed -i "s/{{PROTOBUF_VERSION}}/${PROTOBUF_VERSION}/g" BUILD_INFO.txt
-          sed -i "s/{{GITHUB_RUN}}/${{ github.run_number }}/g" BUILD_INFO.txt
+          # macOS sed requires backup extension argument (use empty string for no backup)
+          sed -i '' "s/{{HADOOP_VERSION}}/${HADOOP_VERSION}/g" BUILD_INFO.txt
+          sed -i '' "s/{{BUILD_DATE}}/$(date -u +"%Y-%m-%d %H:%M:%S UTC")/g" BUILD_INFO.txt
+          sed -i '' "s/{{ARCH}}/${{ matrix.arch }}/g" BUILD_INFO.txt
+          sed -i '' "s/{{ARCH_NAME}}/${{ matrix.arch_name }}/g" BUILD_INFO.txt
+          sed -i '' "s/{{JAVA_BUILD_VERSION}}/${JAVA_BUILD_VERSION}/g" BUILD_INFO.txt
+          sed -i '' "s/{{JAVA_RUNTIME_VERSION}}/${JAVA_RUNTIME_VERSION}/g" BUILD_INFO.txt
+          sed -i '' "s/{{PROTOBUF_VERSION}}/${PROTOBUF_VERSION}/g" BUILD_INFO.txt
+          sed -i '' "s/{{GITHUB_RUN}}/${{ github.run_number }}/g" BUILD_INFO.txt
 
           tar -czf libhdfs-${HADOOP_VERSION}-macos-${{ matrix.arch }}-optimized.tar.gz \
             native/ headers/ jars/ BUILD_INFO.txt
