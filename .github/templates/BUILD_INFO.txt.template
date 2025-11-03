@@ -9,6 +9,12 @@ Protocol Buffers: {{PROTOBUF_VERSION}}
 Build Type: Optimized (native only, pre-compiled JARs)
 GitHub Run: {{GITHUB_RUN}}
 
+Compression Support:
+- Snappy: Enabled
+- LZ4: Enabled
+- Zstd: Enabled
+- Zlib: Enabled (system default)
+
 Build Optimization:
 - Native libraries built from source
 - Java JARs downloaded from Maven Central (no Java compilation!)

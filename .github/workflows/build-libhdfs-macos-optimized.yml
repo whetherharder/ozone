@@ -259,22 +259,33 @@ jobs:
           OPENSSL_PREFIX=$(brew --prefix openssl@3)
           PROTOBUF_PREFIX=$(brew --prefix protobuf@21)
 
+          # Compression libraries
+          SNAPPY_PREFIX=$(brew --prefix snappy 2>/dev/null || echo "$BREW_PREFIX")
+          LZ4_PREFIX=$(brew --prefix lz4 2>/dev/null || echo "$BREW_PREFIX")
+          ZSTD_PREFIX=$(brew --prefix zstd 2>/dev/null || echo "$BREW_PREFIX")
+
           echo "Homebrew prefix: $BREW_PREFIX"
           echo "OpenSSL prefix: $OPENSSL_PREFIX"
           echo "Protobuf prefix: $PROTOBUF_PREFIX"
+          echo "Snappy prefix: $SNAPPY_PREFIX"
+          echo "LZ4 prefix: $LZ4_PREFIX"
+          echo "Zstd prefix: $ZSTD_PREFIX"
 
           # Setup environment
           export OPENSSL_ROOT_DIR=$OPENSSL_PREFIX
           export OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include
           export OPENSSL_LIBRARIES=$OPENSSL_PREFIX/lib
-          export PKG_CONFIG_PATH=$OPENSSL_PREFIX/lib/pkgconfig:$PROTOBUF_PREFIX/lib/pkgconfig
+
+          # Add all compression libraries to PKG_CONFIG_PATH
+          export PKG_CONFIG_PATH=$OPENSSL_PREFIX/lib/pkgconfig:$PROTOBUF_PREFIX/lib/pkgconfig:$SNAPPY_PREFIX/lib/pkgconfig:$LZ4_PREFIX/lib/pkgconfig:$ZSTD_PREFIX/lib/pkgconfig
+
           export PROTOBUF_HOME=$PROTOBUF_PREFIX
-          export CMAKE_PREFIX_PATH=$OPENSSL_PREFIX:$PROTOBUF_PREFIX:$BREW_PREFIX
+          export CMAKE_PREFIX_PATH=$OPENSSL_PREFIX:$PROTOBUF_PREFIX:$SNAPPY_PREFIX:$LZ4_PREFIX:$ZSTD_PREFIX:$BREW_PREFIX
           export Protobuf_ROOT=$PROTOBUF_PREFIX
 
-          # Compiler flags for protobuf (keg-only)
-          export LDFLAGS="-L$PROTOBUF_PREFIX/lib"
-          export CPPFLAGS="-I$PROTOBUF_PREFIX/include"
+          # Compiler flags for all keg-only libraries
+          export LDFLAGS="-L$PROTOBUF_PREFIX/lib -L$SNAPPY_PREFIX/lib -L$LZ4_PREFIX/lib -L$ZSTD_PREFIX/lib"
+          export CPPFLAGS="-I$PROTOBUF_PREFIX/include -I$SNAPPY_PREFIX/include -I$LZ4_PREFIX/include -I$ZSTD_PREFIX/include"
 
           # Build hadoop-common native ONLY (skip Java compilation entirely)
           echo "=== Building hadoop-common native libraries ==="
@@ -291,8 +302,8 @@ jobs:
             -Drequire.libwebhdfs=false \
             -Drequire.fuse=false \
             -Drequire.valgrind=false \
-            -Drequire.snappy=false \
-            -Drequire.zstd=false \
+            -Drequire.snappy=true \
+            -Drequire.zstd=true \
             -Drequire.test.libhdfs=false \
             2>&1 | tee build-common.log || true
 
@@ -317,8 +328,8 @@ jobs:
               -Drequire.libwebhdfs=false \
               -Drequire.fuse=false \
               -Drequire.valgrind=false \
-              -Drequire.snappy=false \
-              -Drequire.zstd=false \
+              -Drequire.snappy=true \
+              -Drequire.zstd=true \
               -Drequire.test.libhdfs=false \
               2>&1 | tee build-common.log
 
