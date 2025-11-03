@@ -43,29 +43,39 @@ jobs:
           path: |
             ~/.m2/repository
             ~/.m2/wrapper
-          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v2
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v3
           restore-keys: |
             ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-
             ${{ runner.os }}-maven-optimized-hadoop-
             ${{ runner.os }}-maven-optimized-
 
-      - name: Download Maven dependencies
+      - name: Download Maven dependencies and plugins
         if: steps.cache-maven-restore.outputs.cache-hit != 'true'
         run: |
-          echo "=== Downloading Maven dependencies for Hadoop ${{ env.HADOOP_VERSION }} ==="
+          echo "=== Downloading ALL Maven dependencies and plugins for Hadoop ${{ env.HADOOP_VERSION }} ==="
 
-          mkdir -p $HOME/maven-setup
-          cd $HOME/maven-setup
+          # Download Hadoop source
+          cd $HOME
+          if [ ! -d "hadoop-src" ]; then
+            curl -L -o hadoop-${HADOOP_VERSION}-src.tar.gz \
+              https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}-src.tar.gz
+            tar -xzf hadoop-${HADOOP_VERSION}-src.tar.gz
+            mv hadoop-${HADOOP_VERSION}-src hadoop-src
+          fi
 
-          # Create POM to download all dependencies
-          cp ${GITHUB_WORKSPACE}/.github/templates/pom-download-jars.xml.template pom.xml
-          sed -i '' "s/{{HADOOP_VERSION}}/${{ env.HADOOP_VERSION }}/g" pom.xml
+          cd $HOME/hadoop-src
 
-          # Download all dependencies
-          mvn dependency:go-offline -B
-          mvn dependency:copy-dependencies -DoutputDirectory=. -DincludeScope=runtime
+          echo "=== Downloading plugins and dependencies for hadoop-common ==="
+          # This will download all Maven plugins and dependencies used in build
+          mvn dependency:go-offline -pl hadoop-common-project/hadoop-common -Pnative -B || true
 
-          echo "✅ Maven dependencies downloaded"
+          # Download plugins for the actual build phases we use
+          mvn help:evaluate -Dexpression=project.version -pl hadoop-common-project/hadoop-common -B || true
+
+          echo "=== Downloading plugins and dependencies for hadoop-hdfs-native-client ==="
+          mvn dependency:go-offline -pl hadoop-hdfs-project/hadoop-hdfs-native-client -Pnative -B || true
+
+          echo "✅ Maven dependencies and plugins downloaded"
 
       - name: Save Maven cache
         if: steps.cache-maven-restore.outputs.cache-hit != 'true'
@@ -74,7 +84,7 @@ jobs:
           path: |
             ~/.m2/repository
             ~/.m2/wrapper
-          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v2
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v3
 
   # ============================================
   # JOB 2: Build libhdfs (runs in parallel after setup-maven)
@@ -198,7 +208,7 @@ jobs:
           path: |
             ~/.m2/repository
             ~/.m2/wrapper
-          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v2
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v3
           restore-keys: |
             ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-
             ${{ runner.os }}-maven-optimized-hadoop-
