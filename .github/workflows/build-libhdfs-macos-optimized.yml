@@ -131,15 +131,21 @@ jobs:
       # ============================================
       # STEP 6: Restore Maven cache for pre-compiled JARs
       # ============================================
+      # Note: Cache is shared between architectures but works across workflow runs, not within.
+      # First run: both jobs download dependencies (no cache exists yet)
+      # Second+ runs: both jobs restore cache (Intel job updates it at the end)
       - name: Restore Maven dependencies cache
         id: cache-maven-restore
         uses: actions/cache/restore@v4
         with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v1
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v2
           restore-keys: |
             ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-
             ${{ runner.os }}-maven-optimized-hadoop-
+            ${{ runner.os }}-maven-optimized-
 
       # ============================================
       # STEP 7: Download pre-compiled Hadoop JARs from Maven Central
@@ -593,5 +599,7 @@ jobs:
         if: always() && matrix.arch == 'intel-x86_64'
         uses: actions/cache/save@v4
         with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v1
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v2
