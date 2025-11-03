@@ -20,8 +20,18 @@ env:
 
 jobs:
   build-libhdfs:
-    name: Build libhdfs native only (use pre-compiled JARs)
-    runs-on: macos-13
+    name: Build libhdfs (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      matrix:
+        include:
+          - arch: intel-x86_64
+            runner: macos-13
+            arch_name: x86_64
+          - arch: apple-silicon-arm64
+            runner: macos-14
+            arch_name: arm64
 
     steps:
       # ============================================
@@ -98,6 +108,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository
+          # JAR files are the same for all architectures, only native libs differ
           key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v1
           restore-keys: |
             ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-
@@ -436,12 +447,12 @@ EOF
           echo "=== Architecture check ==="
           file libhdfs.dylib
 
-          if ! file libhdfs.dylib | grep -q "x86_64"; then
-            echo "ERROR: Wrong architecture!"
+          if ! file libhdfs.dylib | grep -q "${{ matrix.arch_name }}"; then
+            echo "ERROR: Wrong architecture! Expected ${{ matrix.arch_name }}"
             exit 1
           fi
 
-          echo "✅ Architecture: x86_64"
+          echo "✅ Architecture: ${{ matrix.arch_name }}"
 
           echo "=== Dependencies ==="
           otool -L libhdfs.dylib
@@ -505,7 +516,7 @@ Hadoop libhdfs Build Information
 ================================
 Hadoop Version: ${HADOOP_VERSION}
 Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-Build Platform: macOS Intel (x86_64)
+Build Platform: macOS ${{ matrix.arch }} (${{ matrix.arch_name }})
 Build Java: ${JAVA_BUILD_VERSION}
 Runtime Java: ${JAVA_RUNTIME_VERSION}
 Protocol Buffers: ${PROTOBUF_VERSION}
@@ -534,11 +545,11 @@ Usage:
       -L\$HADOOP_HOME/native -lhdfs
 EOF
 
-          tar -czf libhdfs-${HADOOP_VERSION}-macos-intel-x86_64-optimized.tar.gz \
+          tar -czf libhdfs-${HADOOP_VERSION}-macos-${{ matrix.arch }}-optimized.tar.gz \
             native/ headers/ jars/ BUILD_INFO.txt
 
-          shasum -a 256 libhdfs-${HADOOP_VERSION}-macos-intel-x86_64-optimized.tar.gz > \
-            libhdfs-${HADOOP_VERSION}-macos-intel-x86_64-optimized.tar.gz.sha256
+          shasum -a 256 libhdfs-${HADOOP_VERSION}-macos-${{ matrix.arch }}-optimized.tar.gz > \
+            libhdfs-${HADOOP_VERSION}-macos-${{ matrix.arch }}-optimized.tar.gz.sha256
 
           echo "=== Package created ==="
           ls -lh *.tar.gz*
@@ -549,7 +560,7 @@ EOF
       - name: Upload libhdfs package
         uses: actions/upload-artifact@v4
         with:
-          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-intel-x86_64-optimized
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-optimized
           path: |
             ~/libhdfs-artifacts/*.tar.gz
             ~/libhdfs-artifacts/*.sha256
@@ -559,7 +570,7 @@ EOF
       - name: Upload native libraries
         uses: actions/upload-artifact@v4
         with:
-          name: libhdfs-native-only-${{ env.HADOOP_VERSION }}
+          name: libhdfs-native-only-${{ env.HADOOP_VERSION }}-${{ matrix.arch }}
           path: ~/libhdfs-artifacts/native/
           retention-days: 30
 
@@ -578,7 +589,7 @@ EOF
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Build Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Hadoop Version:** ${{ env.HADOOP_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Platform:** macOS Intel (x86_64)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform:** macOS ${{ matrix.arch }} (${{ matrix.arch_name }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- \`libhdfs.dylib\` - HDFS C API library" >> $GITHUB_STEP_SUMMARY
@@ -591,8 +602,10 @@ EOF
       # ============================================
       - name: Save Maven dependencies cache
         id: cache-maven-save
-        if: always()
+        # Only save cache from one job to avoid conflicts
+        if: always() && matrix.arch == 'intel-x86_64'
         uses: actions/cache/save@v4
         with:
           path: ~/.m2/repository
+          # JAR files are the same for all architectures, only native libs differ
           key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v1
