@@ -332,16 +332,17 @@ jobs:
           OPENSSL_PREFIX=$(brew --prefix openssl@3)
           PROTOBUF_PREFIX=$(brew --prefix protobuf@21)
 
-          # Compression libraries
+          # Compression libraries - use Homebrew for all
           SNAPPY_PREFIX=$(brew --prefix snappy 2>/dev/null || echo "$BREW_PREFIX")
           LZ4_PREFIX=$(brew --prefix lz4 2>/dev/null || echo "$BREW_PREFIX")
           ZSTD_PREFIX=$(brew --prefix zstd 2>/dev/null || echo "$BREW_PREFIX")
-          # ZLIB - prefer Homebrew version if available, otherwise use system
-          if brew list zlib &>/dev/null; then
-            ZLIB_PREFIX=$(brew --prefix zlib)
-          else
-            # Use system zlib paths
-            ZLIB_PREFIX="/usr"
+
+          # ZLIB - always use Homebrew version for consistent paths
+          ZLIB_PREFIX=$(brew --prefix zlib 2>/dev/null || echo "")
+          if [ -z "$ZLIB_PREFIX" ]; then
+            echo "⚠️  zlib not found in Homebrew, using system zlib may cause issues"
+            # Try to use system zlib via Xcode SDK paths
+            ZLIB_PREFIX=$(xcrun --show-sdk-path 2>/dev/null || echo "/usr")
           fi
 
           echo "Homebrew prefix: $BREW_PREFIX"
@@ -357,33 +358,26 @@ jobs:
           export OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include
           export OPENSSL_LIBRARIES=$OPENSSL_PREFIX/lib
 
-          # ZLIB configuration for CMake
-          export ZLIB_ROOT=$ZLIB_PREFIX
-          if [ "$ZLIB_PREFIX" = "/usr" ]; then
-            # System zlib - find the actual library path
-            export ZLIB_INCLUDE_DIR=/usr/include
-            # Try multiple locations for system zlib
-            if [ -f "/usr/lib/libz.tbd" ]; then
-              export ZLIB_LIBRARY=/usr/lib/libz.tbd
-            elif [ -f "/usr/lib/libz.dylib" ]; then
-              export ZLIB_LIBRARY=/usr/lib/libz.dylib
-            elif [ -f "/usr/lib/libz.1.dylib" ]; then
-              export ZLIB_LIBRARY=/usr/lib/libz.1.dylib
-            else
-              # Fallback: let CMake find it
-              export ZLIB_LIBRARY=/usr/lib/libz.dylib
-            fi
-          else
+          # ZLIB configuration for CMake - use actual Homebrew paths
+          if [[ "$ZLIB_PREFIX" == *"/opt/homebrew"* ]] || [[ "$ZLIB_PREFIX" == *"/usr/local"* ]]; then
             # Homebrew zlib
+            export ZLIB_ROOT=$ZLIB_PREFIX
             export ZLIB_INCLUDE_DIR=$ZLIB_PREFIX/include
             export ZLIB_LIBRARY=$ZLIB_PREFIX/lib/libz.dylib
+            echo "Using Homebrew zlib:"
+            echo "  ZLIB_ROOT=$ZLIB_ROOT"
+            echo "  ZLIB_INCLUDE_DIR=$ZLIB_INCLUDE_DIR"
+            echo "  ZLIB_LIBRARY=$ZLIB_LIBRARY"
+            ls -la "$ZLIB_LIBRARY" 2>/dev/null || echo "  ⚠️  ZLIB_LIBRARY not found!"
+          else
+            # System zlib via SDK
+            export ZLIB_ROOT=$ZLIB_PREFIX
+            export ZLIB_INCLUDE_DIR=$ZLIB_PREFIX/usr/include
+            echo "Using system zlib via SDK:"
+            echo "  ZLIB_ROOT=$ZLIB_ROOT"
+            echo "  ZLIB_INCLUDE_DIR=$ZLIB_INCLUDE_DIR"
+            echo "  Note: ZLIB_LIBRARY will be auto-detected by CMake"
           fi
-
-          echo "ZLIB configuration:"
-          echo "  ZLIB_ROOT=$ZLIB_ROOT"
-          echo "  ZLIB_INCLUDE_DIR=$ZLIB_INCLUDE_DIR"
-          echo "  ZLIB_LIBRARY=$ZLIB_LIBRARY"
-          ls -la "$ZLIB_LIBRARY" 2>/dev/null || echo "  Warning: ZLIB_LIBRARY not found at $ZLIB_LIBRARY"
 
           # Add all compression libraries to PKG_CONFIG_PATH
           export PKG_CONFIG_PATH=$OPENSSL_PREFIX/lib/pkgconfig:$PROTOBUF_PREFIX/lib/pkgconfig:$SNAPPY_PREFIX/lib/pkgconfig:$LZ4_PREFIX/lib/pkgconfig:$ZSTD_PREFIX/lib/pkgconfig
@@ -393,8 +387,15 @@ jobs:
           export Protobuf_ROOT=$PROTOBUF_PREFIX
 
           # Compiler flags for all keg-only libraries
-          export LDFLAGS="-L$PROTOBUF_PREFIX/lib -L$SNAPPY_PREFIX/lib -L$LZ4_PREFIX/lib -L$ZSTD_PREFIX/lib -L$ZLIB_PREFIX/lib"
-          export CPPFLAGS="-I$PROTOBUF_PREFIX/include -I$SNAPPY_PREFIX/include -I$LZ4_PREFIX/include -I$ZSTD_PREFIX/include -I$ZLIB_PREFIX/include"
+          if [[ "$ZLIB_PREFIX" == *"/opt/homebrew"* ]] || [[ "$ZLIB_PREFIX" == *"/usr/local"* ]]; then
+            # Include Homebrew zlib in flags
+            export LDFLAGS="-L$PROTOBUF_PREFIX/lib -L$SNAPPY_PREFIX/lib -L$LZ4_PREFIX/lib -L$ZSTD_PREFIX/lib -L$ZLIB_PREFIX/lib"
+            export CPPFLAGS="-I$PROTOBUF_PREFIX/include -I$SNAPPY_PREFIX/include -I$LZ4_PREFIX/include -I$ZSTD_PREFIX/include -I$ZLIB_PREFIX/include"
+          else
+            # System zlib, don't add to flags (CMake will find it)
+            export LDFLAGS="-L$PROTOBUF_PREFIX/lib -L$SNAPPY_PREFIX/lib -L$LZ4_PREFIX/lib -L$ZSTD_PREFIX/lib"
+            export CPPFLAGS="-I$PROTOBUF_PREFIX/include -I$SNAPPY_PREFIX/include -I$LZ4_PREFIX/include -I$ZSTD_PREFIX/include"
+          fi
 
           # Build hadoop-common native ONLY (skip Java compilation entirely)
           echo "=== Building hadoop-common native libraries ==="
