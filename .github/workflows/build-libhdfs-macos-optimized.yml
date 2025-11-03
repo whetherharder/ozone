@@ -101,12 +101,32 @@ jobs:
           BREW_PREFIX=$(brew --prefix)
           OPENSSL_PREFIX=$(brew --prefix openssl@3)
 
+          echo "Homebrew prefix: $BREW_PREFIX"
+          echo "OpenSSL prefix: $OPENSSL_PREFIX"
+
+          # Verify OpenSSL installation
+          echo "=== Verifying OpenSSL installation ==="
+          ls -la "$OPENSSL_PREFIX/include/" | head -10
+          ls -la "$OPENSSL_PREFIX/lib/" | grep -E 'libssl|libcrypto'
+
+          # Create symlinks for headers
           if [ ! -e "$BREW_PREFIX/include/openssl" ]; then
             cd "$BREW_PREFIX/include"
             sudo ln -sf "$OPENSSL_PREFIX/include/openssl" . || true
+            echo "✅ Created header symlink: $BREW_PREFIX/include/openssl -> $OPENSSL_PREFIX/include/openssl"
+          else
+            echo "✅ Header symlink already exists: $BREW_PREFIX/include/openssl"
           fi
 
-          echo "OpenSSL symlink created at $BREW_PREFIX/include/openssl -> $OPENSSL_PREFIX/include/openssl"
+          # Create symlinks for libraries
+          if [ ! -e "$BREW_PREFIX/lib/libssl.dylib" ]; then
+            cd "$BREW_PREFIX/lib"
+            sudo ln -sf "$OPENSSL_PREFIX/lib/libssl.3.dylib" libssl.dylib || true
+            sudo ln -sf "$OPENSSL_PREFIX/lib/libcrypto.3.dylib" libcrypto.dylib || true
+            echo "✅ Created library symlinks in $BREW_PREFIX/lib"
+          else
+            echo "✅ Library symlinks already exist"
+          fi
 
       # ============================================
       # STEP 6: Restore Maven cache for pre-compiled JARs
