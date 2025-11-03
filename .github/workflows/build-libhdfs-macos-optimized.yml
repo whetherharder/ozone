@@ -474,24 +474,70 @@ jobs:
           ls -lh *.tar.gz*
 
       # ============================================
-      # STEP 15: Upload artifacts
+      # STEP 15: Upload artifacts (each file separately)
       # ============================================
-      - name: Upload libhdfs package
+      - name: Upload complete package (tar.gz)
         uses: actions/upload-artifact@v4
         with:
-          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-optimized
-          path: |
-            ~/libhdfs-artifacts/*.tar.gz
-            ~/libhdfs-artifacts/*.sha256
-            ~/libhdfs-artifacts/BUILD_INFO.txt
-          retention-days: 30
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-package.tar.gz
+          path: ~/libhdfs-artifacts/*.tar.gz
+          retention-days: 90
 
-      - name: Upload native libraries
+      - name: Upload package checksum (sha256)
         uses: actions/upload-artifact@v4
         with:
-          name: libhdfs-native-only-${{ env.HADOOP_VERSION }}-${{ matrix.arch }}
-          path: ~/libhdfs-artifacts/native/
-          retention-days: 30
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-package.tar.gz.sha256
+          path: ~/libhdfs-artifacts/*.sha256
+          retention-days: 90
+
+      - name: Upload BUILD_INFO.txt
+        uses: actions/upload-artifact@v4
+        with:
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-BUILD_INFO.txt
+          path: ~/libhdfs-artifacts/BUILD_INFO.txt
+          retention-days: 90
+
+      - name: Upload libhdfs.dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-libhdfs.dylib
+          path: ~/libhdfs-artifacts/native/libhdfs.dylib
+          retention-days: 90
+
+      - name: Upload libhdfs.a
+        uses: actions/upload-artifact@v4
+        with:
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-libhdfs.a
+          path: ~/libhdfs-artifacts/native/libhdfs.a
+          retention-days: 90
+
+      - name: Upload libhadoop.dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-libhadoop.dylib
+          path: ~/libhdfs-artifacts/native/libhadoop.dylib
+          retention-days: 90
+
+      - name: Upload libhadoop.a
+        uses: actions/upload-artifact@v4
+        with:
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-libhadoop.a
+          path: ~/libhdfs-artifacts/native/libhadoop.a
+          retention-days: 90
+
+      - name: Upload all headers
+        uses: actions/upload-artifact@v4
+        with:
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-headers
+          path: ~/libhdfs-artifacts/headers/
+          retention-days: 90
+
+      - name: Upload all JARs
+        uses: actions/upload-artifact@v4
+        with:
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}-jars
+          path: ~/libhdfs-artifacts/jars/
+          retention-days: 90
 
       # ============================================
       # STEP 16: Summary
