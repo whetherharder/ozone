@@ -350,9 +350,19 @@ jobs:
           # ZLIB configuration for CMake
           export ZLIB_ROOT=$ZLIB_PREFIX
           if [ "$ZLIB_PREFIX" = "/usr" ]; then
-            # System zlib
+            # System zlib - find the actual library path
             export ZLIB_INCLUDE_DIR=/usr/include
-            export ZLIB_LIBRARY=/usr/lib/libz.dylib
+            # Try multiple locations for system zlib
+            if [ -f "/usr/lib/libz.tbd" ]; then
+              export ZLIB_LIBRARY=/usr/lib/libz.tbd
+            elif [ -f "/usr/lib/libz.dylib" ]; then
+              export ZLIB_LIBRARY=/usr/lib/libz.dylib
+            elif [ -f "/usr/lib/libz.1.dylib" ]; then
+              export ZLIB_LIBRARY=/usr/lib/libz.1.dylib
+            else
+              # Fallback: let CMake find it
+              export ZLIB_LIBRARY=/usr/lib/libz.dylib
+            fi
           else
             # Homebrew zlib
             export ZLIB_INCLUDE_DIR=$ZLIB_PREFIX/include
@@ -363,6 +373,7 @@ jobs:
           echo "  ZLIB_ROOT=$ZLIB_ROOT"
           echo "  ZLIB_INCLUDE_DIR=$ZLIB_INCLUDE_DIR"
           echo "  ZLIB_LIBRARY=$ZLIB_LIBRARY"
+          ls -la "$ZLIB_LIBRARY" 2>/dev/null || echo "  Warning: ZLIB_LIBRARY not found at $ZLIB_LIBRARY"
 
           # Add all compression libraries to PKG_CONFIG_PATH
           export PKG_CONFIG_PATH=$OPENSSL_PREFIX/lib/pkgconfig:$PROTOBUF_PREFIX/lib/pkgconfig:$SNAPPY_PREFIX/lib/pkgconfig:$LZ4_PREFIX/lib/pkgconfig:$ZSTD_PREFIX/lib/pkgconfig
