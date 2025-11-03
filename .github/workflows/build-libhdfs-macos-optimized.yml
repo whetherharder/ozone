@@ -108,7 +108,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.m2/repository
-          # JAR files are the same for all architectures, only native libs differ
           key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v1
           restore-keys: |
             ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-
@@ -127,51 +126,9 @@ jobs:
           # Download only the JARs needed for libhdfs runtime
           cd $HOME/hadoop-jars
 
-          # Core Hadoop JARs needed for libhdfs
-          JARS=(
-            "org.apache.hadoop:hadoop-common:${HADOOP_VERSION}"
-            "org.apache.hadoop:hadoop-hdfs-client:${HADOOP_VERSION}"
-            "org.apache.hadoop:hadoop-auth:${HADOOP_VERSION}"
-            "commons-logging:commons-logging:1.1.3"
-            "com.google.guava:guava:27.0-jre"
-            "commons-collections:commons-collections:3.2.2"
-            "commons-configuration:commons-configuration:1.6"
-            "org.apache.commons:commons-lang3:3.12.0"
-            "org.slf4j:slf4j-api:1.7.30"
-            "org.slf4j:slf4j-log4j12:1.7.30"
-          )
-
-          # Create minimal pom.xml for downloading
-          cat > pom.xml << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>temp</groupId>
-  <artifactId>hadoop-jar-downloader</artifactId>
-  <version>1.0</version>
-  <packaging>pom</packaging>
-
-  <dependencies>
-EOF
-
-          # Add dependencies
-          for jar in "${JARS[@]}"; do
-            IFS=':' read -r group artifact version <<< "$jar"
-            cat >> pom.xml << EOF
-    <dependency>
-      <groupId>${group}</groupId>
-      <artifactId>${artifact}</artifactId>
-      <version>${version}</version>
-    </dependency>
-EOF
-          done
-
-          cat >> pom.xml << 'EOF'
-  </dependencies>
-</project>
-EOF
+          # Use pom.xml template from repository
+          cp ${GITHUB_WORKSPACE}/.github/templates/pom-download-jars.xml.template pom.xml
+          sed -i "s/{{HADOOP_VERSION}}/${HADOOP_VERSION}/g" pom.xml
 
           # Download JARs with dependencies
           mvn dependency:copy-dependencies -DoutputDirectory=. -DincludeScope=runtime
@@ -448,7 +405,7 @@ EOF
           file libhdfs.dylib
 
           if ! file libhdfs.dylib | grep -q "${{ matrix.arch_name }}"; then
-            echo "ERROR: Wrong architecture! Expected ${{ matrix.arch_name }}"
+            echo "ERROR: Wrong architecture!"
             exit 1
           fi
 
@@ -474,23 +431,8 @@ EOF
           export CLASSPATH=$(find $HOME/libhdfs-artifacts/jars -name "*.jar" | tr '\n' ':')
           export DYLD_LIBRARY_PATH=$HOME/libhdfs-artifacts/native:$JAVA_HOME/lib/server
 
-          cat > /tmp/test_libhdfs.c << 'EOF'
-#include "hdfs.h"
-#include <stdio.h>
-
-int main() {
-    printf("libhdfs smoke test\n");
-    printf("libhdfs version compiled successfully\n");
-
-    struct hdfsBuilder *builder = hdfsNewBuilder();
-    if (builder) {
-        printf("✅ hdfsNewBuilder() works\n");
-        hdfsFreeBuilder(builder);
-    }
-
-    return 0;
-}
-EOF
+          # Use test file from repository
+          cp ${GITHUB_WORKSPACE}/.github/templates/test_libhdfs.c /tmp/test_libhdfs.c
 
           gcc /tmp/test_libhdfs.c -o /tmp/test_libhdfs \
             -I$HOME/libhdfs-artifacts/headers \
@@ -511,39 +453,16 @@ EOF
         run: |
           cd $HOME/libhdfs-artifacts
 
-          cat > BUILD_INFO.txt << EOF
-Hadoop libhdfs Build Information
-================================
-Hadoop Version: ${HADOOP_VERSION}
-Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-Build Platform: macOS ${{ matrix.arch }} (${{ matrix.arch_name }})
-Build Java: ${JAVA_BUILD_VERSION}
-Runtime Java: ${JAVA_RUNTIME_VERSION}
-Protocol Buffers: ${PROTOBUF_VERSION}
-Build Type: Optimized (native only, pre-compiled JARs)
-GitHub Run: ${{ github.run_number }}
-
-Build Optimization:
-- Native libraries built from source
-- Java JARs downloaded from Maven Central (no Java compilation!)
-- Significantly faster build time
-
-Contents:
-- native/libhdfs.dylib - HDFS C API library
-- native/libhadoop.* - Hadoop native library
-- headers/*.h - C header files
-- jars/*.jar - Required Java JARs (pre-compiled from Maven Central)
-
-Usage:
-  export HADOOP_HOME=/path/to/libhdfs
-  export CLASSPATH=\$(find \$HADOOP_HOME/jars -name "*.jar" | tr '\n' ':')
-  export DYLD_LIBRARY_PATH=\$HADOOP_HOME/native:\$JAVA_HOME/lib/server
-
-  gcc your_app.c -I\$HADOOP_HOME/headers \\
-      -I\$JAVA_HOME/include \\
-      -I\$JAVA_HOME/include/darwin \\
-      -L\$HADOOP_HOME/native -lhdfs
-EOF
+          # Use BUILD_INFO template from repository
+          cp ${GITHUB_WORKSPACE}/.github/templates/BUILD_INFO.txt.template BUILD_INFO.txt
+          sed -i "s/{{HADOOP_VERSION}}/${HADOOP_VERSION}/g" BUILD_INFO.txt
+          sed -i "s/{{BUILD_DATE}}/$(date -u +"%Y-%m-%d %H:%M:%S UTC")/g" BUILD_INFO.txt
+          sed -i "s/{{ARCH}}/${{ matrix.arch }}/g" BUILD_INFO.txt
+          sed -i "s/{{ARCH_NAME}}/${{ matrix.arch_name }}/g" BUILD_INFO.txt
+          sed -i "s/{{JAVA_BUILD_VERSION}}/${JAVA_BUILD_VERSION}/g" BUILD_INFO.txt
+          sed -i "s/{{JAVA_RUNTIME_VERSION}}/${JAVA_RUNTIME_VERSION}/g" BUILD_INFO.txt
+          sed -i "s/{{PROTOBUF_VERSION}}/${PROTOBUF_VERSION}/g" BUILD_INFO.txt
+          sed -i "s/{{GITHUB_RUN}}/${{ github.run_number }}/g" BUILD_INFO.txt
 
           tar -czf libhdfs-${HADOOP_VERSION}-macos-${{ matrix.arch }}-optimized.tar.gz \
             native/ headers/ jars/ BUILD_INFO.txt
@@ -589,7 +508,7 @@ EOF
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Build Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Hadoop Version:** ${{ env.HADOOP_VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Platform:** macOS ${{ matrix.arch }} (${{ matrix.arch_name }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform:** macOS Intel (x86_64)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- \`libhdfs.dylib\` - HDFS C API library" >> $GITHUB_STEP_SUMMARY
@@ -602,10 +521,8 @@ EOF
       # ============================================
       - name: Save Maven dependencies cache
         id: cache-maven-save
-        # Only save cache from one job to avoid conflicts
         if: always() && matrix.arch == 'intel-x86_64'
         uses: actions/cache/save@v4
         with:
           path: ~/.m2/repository
-          # JAR files are the same for all architectures, only native libs differ
           key: ${{ runner.os }}-maven-optimized-hadoop-${{ env.HADOOP_VERSION }}-v1
