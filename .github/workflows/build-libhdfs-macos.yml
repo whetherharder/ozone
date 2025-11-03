@@ -149,13 +149,16 @@ jobs:
           brew install protobuf@21
 
           # protobuf@21 is keg-only, need to add to PATH
-          export PATH="/usr/local/opt/protobuf@21/bin:$PATH"
+          # Use brew --prefix to support both Intel (/usr/local) and ARM64 (/opt/homebrew)
+          PROTOBUF_PREFIX=$(brew --prefix protobuf@21)
+          export PATH="$PROTOBUF_PREFIX/bin:$PATH"
 
           echo "Protobuf version:"
           protoc --version
+          echo "Protobuf installed at: $PROTOBUF_PREFIX"
 
           # Add to PATH for subsequent steps
-          echo "/usr/local/opt/protobuf@21/bin" >> $GITHUB_PATH
+          echo "$PROTOBUF_PREFIX/bin" >> $GITHUB_PATH
 
       # ============================================
       # STEP 4: Setup Java (check installed first)
@@ -351,21 +354,30 @@ jobs:
       # ============================================
       - name: Setup build environment
         run: |
-          echo "OPENSSL_ROOT_DIR=/usr/local/opt/openssl@3" >> $GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl@3/include" >> $GITHUB_ENV
-          echo "OPENSSL_LIBRARIES=/usr/local/opt/openssl@3/lib" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=/usr/local/opt/openssl@3/lib/pkgconfig:/usr/local/opt/protobuf@21/lib/pkgconfig" >> $GITHUB_ENV
-          echo "PROTOBUF_HOME=/usr/local/opt/protobuf@21" >> $GITHUB_ENV
-          echo "Protobuf_ROOT=/usr/local/opt/protobuf@21" >> $GITHUB_ENV
+          # Get Homebrew prefixes (supports both Intel and ARM64)
+          BREW_PREFIX=$(brew --prefix)
+          OPENSSL_PREFIX=$(brew --prefix openssl@3)
+          PROTOBUF_PREFIX=$(brew --prefix protobuf@21)
+
+          echo "Homebrew prefix: $BREW_PREFIX"
+          echo "OpenSSL prefix: $OPENSSL_PREFIX"
+          echo "Protobuf prefix: $PROTOBUF_PREFIX"
+
+          echo "OPENSSL_ROOT_DIR=$OPENSSL_PREFIX" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include" >> $GITHUB_ENV
+          echo "OPENSSL_LIBRARIES=$OPENSSL_PREFIX/lib" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$OPENSSL_PREFIX/lib/pkgconfig:$PROTOBUF_PREFIX/lib/pkgconfig" >> $GITHUB_ENV
+          echo "PROTOBUF_HOME=$PROTOBUF_PREFIX" >> $GITHUB_ENV
+          echo "Protobuf_ROOT=$PROTOBUF_PREFIX" >> $GITHUB_ENV
 
           # Compiler flags for protobuf (keg-only)
-          echo "LDFLAGS=-L/usr/local/opt/protobuf@21/lib" >> $GITHUB_ENV
-          echo "CPPFLAGS=-I/usr/local/opt/protobuf@21/include" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$PROTOBUF_PREFIX/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$PROTOBUF_PREFIX/include" >> $GITHUB_ENV
 
           # Reduced Maven memory for libhdfs-only build
           echo "MAVEN_OPTS=-Xms256m -Xmx1536m -XX:MaxMetaspaceSize=256m" >> $GITHUB_ENV
 
-          echo "CMAKE_PREFIX_PATH=/usr/local/opt/openssl@3:/usr/local/opt/protobuf@21:/usr/local" >> $GITHUB_ENV
+          echo "CMAKE_PREFIX_PATH=$OPENSSL_PREFIX:$PROTOBUF_PREFIX:$BREW_PREFIX" >> $GITHUB_ENV
 
       # ============================================
       # STEP 10: Build ONLY libhdfs (minimal)
@@ -397,7 +409,7 @@ jobs:
             -DskipTests \
             -Dmaven.javadoc.skip=true \
             -Drequire.openssl=true \
-            -Dopenssl.prefix=/usr/local/opt/openssl@3 \
+            -Dopenssl.prefix=$OPENSSL_PREFIX \
             -Dbundle.openssl=false \
             -Drequire.libwebhdfs=false \
             -Drequire.fuse=false \
@@ -422,7 +434,7 @@ jobs:
             -DskipTests \
             -Dmaven.javadoc.skip=true \
             -Drequire.openssl=true \
-            -Dopenssl.prefix=/usr/local/opt/openssl@3 \
+            -Dopenssl.prefix=$OPENSSL_PREFIX \
             -Dbundle.openssl=false \
             -Drequire.libwebhdfs=false \
             -Drequire.fuse=false \

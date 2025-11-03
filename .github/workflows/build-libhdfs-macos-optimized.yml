@@ -81,24 +81,32 @@ jobs:
         run: |
           echo "=== Verifying Protocol Buffers from brew ==="
           # protobuf@21 is keg-only, need to add to PATH
-          export PATH="/usr/local/opt/protobuf@21/bin:$PATH"
+          # Use brew --prefix to support both Intel (/usr/local) and ARM64 (/opt/homebrew)
+          PROTOBUF_PREFIX=$(brew --prefix protobuf@21)
+          export PATH="$PROTOBUF_PREFIX/bin:$PATH"
           protoc --version
           echo "Protobuf libraries:"
-          ls -la /usr/local/opt/protobuf@21/lib/ | grep libprotobuf
-          echo "✅ Protocol Buffers installed via brew"
+          ls -la "$PROTOBUF_PREFIX/lib/" | grep libprotobuf
+          echo "✅ Protocol Buffers installed via brew at $PROTOBUF_PREFIX"
 
           # Add to PATH for subsequent steps
-          echo "/usr/local/opt/protobuf@21/bin" >> $GITHUB_PATH
+          echo "$PROTOBUF_PREFIX/bin" >> $GITHUB_PATH
 
       # ============================================
       # STEP 5: Setup OpenSSL
       # ============================================
       - name: Setup OpenSSL symlinks
         run: |
-          if [ ! -e "/usr/local/include/openssl" ]; then
-            cd /usr/local/include
-            sudo ln -sf ../opt/openssl@3/include/openssl . || true
+          # Get Homebrew prefix (supports both Intel and ARM64)
+          BREW_PREFIX=$(brew --prefix)
+          OPENSSL_PREFIX=$(brew --prefix openssl@3)
+
+          if [ ! -e "$BREW_PREFIX/include/openssl" ]; then
+            cd "$BREW_PREFIX/include"
+            sudo ln -sf "$OPENSSL_PREFIX/include/openssl" . || true
           fi
+
+          echo "OpenSSL symlink created at $BREW_PREFIX/include/openssl -> $OPENSSL_PREFIX/include/openssl"
 
       # ============================================
       # STEP 6: Restore Maven cache for pre-compiled JARs
@@ -225,18 +233,27 @@ jobs:
           echo "=== Building ONLY native libraries ==="
           echo "Skipping ALL Java compilation - using pre-downloaded JARs!"
 
+          # Get Homebrew prefixes (supports both Intel and ARM64)
+          BREW_PREFIX=$(brew --prefix)
+          OPENSSL_PREFIX=$(brew --prefix openssl@3)
+          PROTOBUF_PREFIX=$(brew --prefix protobuf@21)
+
+          echo "Homebrew prefix: $BREW_PREFIX"
+          echo "OpenSSL prefix: $OPENSSL_PREFIX"
+          echo "Protobuf prefix: $PROTOBUF_PREFIX"
+
           # Setup environment
-          export OPENSSL_ROOT_DIR=/usr/local/opt/openssl@3
-          export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl@3/include
-          export OPENSSL_LIBRARIES=/usr/local/opt/openssl@3/lib
-          export PKG_CONFIG_PATH=/usr/local/opt/openssl@3/lib/pkgconfig:/usr/local/opt/protobuf@21/lib/pkgconfig
-          export PROTOBUF_HOME=/usr/local/opt/protobuf@21
-          export CMAKE_PREFIX_PATH=/usr/local/opt/openssl@3:/usr/local/opt/protobuf@21:/usr/local
-          export Protobuf_ROOT=/usr/local/opt/protobuf@21
+          export OPENSSL_ROOT_DIR=$OPENSSL_PREFIX
+          export OPENSSL_INCLUDE_DIR=$OPENSSL_PREFIX/include
+          export OPENSSL_LIBRARIES=$OPENSSL_PREFIX/lib
+          export PKG_CONFIG_PATH=$OPENSSL_PREFIX/lib/pkgconfig:$PROTOBUF_PREFIX/lib/pkgconfig
+          export PROTOBUF_HOME=$PROTOBUF_PREFIX
+          export CMAKE_PREFIX_PATH=$OPENSSL_PREFIX:$PROTOBUF_PREFIX:$BREW_PREFIX
+          export Protobuf_ROOT=$PROTOBUF_PREFIX
 
           # Compiler flags for protobuf (keg-only)
-          export LDFLAGS="-L/usr/local/opt/protobuf@21/lib"
-          export CPPFLAGS="-I/usr/local/opt/protobuf@21/include"
+          export LDFLAGS="-L$PROTOBUF_PREFIX/lib"
+          export CPPFLAGS="-I$PROTOBUF_PREFIX/include"
 
           # Build hadoop-common native ONLY (skip Java compilation entirely)
           echo "=== Building hadoop-common native libraries ==="
@@ -248,7 +265,7 @@ jobs:
             -Dmaven.source.skip=true \
             -Drat.skip=true \
             -Drequire.openssl=true \
-            -Dopenssl.prefix=/usr/local/opt/openssl@3 \
+            -Dopenssl.prefix=$OPENSSL_PREFIX \
             -Dbundle.openssl=false \
             -Drequire.libwebhdfs=false \
             -Drequire.fuse=false \
@@ -274,7 +291,7 @@ jobs:
               -Dcheckstyle.skip=true \
               -Dfindbugs.skip=true \
               -Drequire.openssl=true \
-              -Dopenssl.prefix=/usr/local/opt/openssl@3 \
+              -Dopenssl.prefix=$OPENSSL_PREFIX \
               -Dbundle.openssl=false \
               -Drequire.libwebhdfs=false \
               -Drequire.fuse=false \
@@ -306,7 +323,7 @@ jobs:
             -Dcheckstyle.skip=true \
             -Dfindbugs.skip=true \
             -Drequire.openssl=true \
-            -Dopenssl.prefix=/usr/local/opt/openssl@3 \
+            -Dopenssl.prefix=$OPENSSL_PREFIX \
             -Dbundle.openssl=false \
             -Drequire.libwebhdfs=false \
             -Drequire.fuse=false \
