@@ -1,44 +1,51 @@
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
 *.iml
 *.ipr
 *.iws
-*.orig
-*.rej
-**/.keep
-*.sdf
-*.suo
-*.vcxproj.user
-*.patch
-!.github/patches/*.patch
 .idea
 .vscode
-.svn
-.classpath
-.project
-.settings
-*.factorypath
-target
-build
+
+# Build artifacts
+target/
+build/
+*.o
+*.so
+*.dylib
+*.a
+
+# Maven
 dependency-reduced-pom.xml
-make-build-debug
+.mvn/.gradle-enterprise/
+.mvn/.develocity/
 
-# Filesystem contract test options and credentials
-auth-keys.xml
-azure-auth-keys.xml
-azure-bfs-auth-keys.xml
+# Hadoop build artifacts
+hadoop-src/
+libhdfs-artifacts/
+*.tar.gz
+*.sha256
 
-# External tool builders
-*/.externalToolBuilders
-*/maven-eclipse.xml
-
-#robotframework outputs
+# Test outputs
 log.html
 output.xml
 report.html
 
-.dev-tools
-dev-support/ci/bats-assert
-dev-support/ci/bats-support
+# Temporary files
+*.orig
+*.rej
+*.patch
+!.github/patches/*.patch
+*.tmp
+*.bak
 
-.mvn/.gradle-enterprise/
-.mvn/.develocity/
+# Java
+*.class
+
+# Credentials and secrets
+auth-keys.xml
+*.pem
+*.key

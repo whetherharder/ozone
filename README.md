@@ -1,129 +1,108 @@
-<div align="center">
-  <a href="https://ozone.apache.org">
-    <img src="https://www.apache.org/logos/res/ozone/default.png" alt="Apache Ozone Logo" />
-  </a>
-</div>
+# libhdfs-macos
 
-[![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
-[![Docker Pulls](https://img.shields.io/docker/pulls/apache/ozone.svg)](https://hub.docker.com/r/apache/ozone)
-[![Docker Stars](https://img.shields.io/docker/stars/apache/ozone.svg)](https://hub.docker.com/r/apache/ozone)
-[![Contributors](https://img.shields.io/github/contributors/apache/ozone)](https://github.com/apache/ozone/graphs/contributors)
-[![Commit Activity](https://img.shields.io/github/commit-activity/m/apache/ozone)](https://github.com/apache/ozone/commits/master)
-[![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/3018)](https://ossrank.com/p/3018-apache-ozone)
+Automated build system for Hadoop libhdfs native libraries on macOS (Intel x86_64 and Apple Silicon ARM64).
 
-Apache Ozone
-===
+## Overview
 
-Ozone is a scalable, redundant, and distributed object store for Hadoop and Cloud-native environments. Apart from scaling to billions of objects of varying sizes, Ozone can function effectively in containerized environments such as Kubernetes and YARN.
+This repository provides GitHub Actions workflows to build Hadoop libhdfs native libraries optimized for macOS platforms. The libraries are built with full compression support (Snappy, LZ4, Zstd, Zlib) and are compatible with PyArrow and Apache Ozone.
 
+## Features
 
- * MULTI-PROTOCOL SUPPORT: Ozone supports different protocols like S3 and Hadoop File System APIs.
- * SCALABLE: Ozone is designed to scale to tens of billions of files and blocks and, in the future, even more.
- * CONSISTENT: Ozone is a strongly consistent object store. This consistency is achieved by using protocols like RAFT.
- * CLOUD-NATIVE: Ozone is designed to work well in containerized environments like YARN and Kubernetes.
- * SECURE: Ozone integrates with Kerberos infrastructure for authentication, supports native ACLs and integrates with Ranger for access control and supports TDE and on-wire encryption.
- * HIGHLY AVAILABLE: Ozone is a fully replicated system that is designed to survive multiple failures.
+- **Dual Architecture Support**: Builds for both Intel x86_64 (macos-13) and Apple Silicon ARM64 (macos-14)
+- **Compression Support**: Includes Snappy, LZ4, Zstd, and Zlib compression libraries
+- **Optimized Build**:
+  - Downloads pre-compiled Hadoop JARs from Maven Central
+  - Only compiles native C/C++ code
+  - Maven dependency caching for faster builds
+- **Automatic Testing**: Integration tests with PyArrow and mini Ozone cluster
+- **Artifacts**: Native libraries packaged and available for download
 
-## Documentation
+## Build Artifacts
 
-The latest documentation is generated together with the releases and hosted on the apache site.
+Each successful build produces artifacts containing:
 
-Please check [the documentation page](https://ozone.apache.org/docs/) for more information.
+- `libhdfs.dylib` / `libhdfs.a` - HDFS C API library (dynamic/static)
+- `libhadoop.dylib` / `libhadoop.a` - Hadoop native library (dynamic/static)
+- Headers and build information
 
-## Contact
+## Hadoop Version
 
-Ozone is a top level project under the [Apache Software Foundation](https://apache.org)
+Current version: **3.3.6**
 
- * Ozone [web page](https://ozone.apache.org)
- * Mailing lists
-     * For any questions use: [dev@ozone.apache.org](https://lists.apache.org/list.html?dev@ozone.apache.org)
- * Chat: There are a few ways to interact with the community
-     * You can find the #ozone channel on the official ASF Slack. Invite link is [here](http://s.apache.org/slack-invite).
-     * You can use [GitHub Discussions](https://github.com/apache/ozone/discussions) to post questions or follow community syncs. 
- * There are Open [Weekly calls](https://cwiki.apache.org/confluence/display/OZONE/Ozone+Community+Calls) where you can ask anything about Ozone.
-    * Past meeting notes are also available from the wiki.
- * Reporting security issues: Please consult with [SECURITY.md](./SECURITY.md) about reporting security vulnerabilities and issues.
+## Usage
 
-## Download
+### Automated Builds
 
-Latest release artifacts (source release and binary packages) are [available](https://ozone.apache.org/downloads/) from the Ozone web page.
+Builds are automatically triggered on:
+- Push to `main`, `develop`, or `claude/**` branches
+- Pull requests to `main`
 
-## Quick start
+### Manual Builds
 
-### Run Ozone with Docker Compose
+You can trigger builds manually:
 
-The easiest way to start a cluster with docker is by using Docker Compose:
+1. Go to **Actions** → **Build Hadoop libhdfs (Highly Optimized - Native Only)**
+2. Click **"Run workflow"**
+3. Select branch and Hadoop version
+4. Optionally enable `skip_build` to run only integration tests on existing artifacts
 
-- Obtain Ozone’s sample Docker Compose configuration:
-```bash
-curl -O https://raw.githubusercontent.com/apache/ozone-docker/refs/heads/latest/docker-compose.yaml
-```
+### Download Artifacts
 
-- Start the cluster
-```bash
-docker compose up -d --scale datanode=3
-```
+After a successful build:
 
-- Note: By default, the cluster will be started with replication factor set to 1. It can be changed by setting the environment variable `OZONE_REPLICATION_FACTOR` to the desired value.
+1. Go to the workflow run page
+2. Scroll to **Artifacts** section
+3. Download artifacts for your architecture:
+   - `libhdfs-3.3.6-macos-intel-x86_64`
+   - `libhdfs-3.3.6-macos-apple-silicon-arm64`
 
-And you can use AWS S3 cli:
+## Integration Testing
 
-- First, let’s configure AWS access key and secret key. Because the cluster is not secured, you can use any arbitrary access key and secret key. For example:
-```bash
-export AWS_ACCESS_KEY_ID=testuser/scm@EXAMPLE.COM
-export AWS_SECRET_ACCESS_KEY=c261b6ecabf7d37d5f9ded654b1c724adac9bd9f13e247a235e567e8296d2999
-```
+Integration tests verify:
+- Library loading and initialization
+- Compression library symbols (Snappy, LZ4, Zstd, Zlib)
+- PyArrow compatibility (optional, requires mini Ozone cluster)
 
-- Then we can create a bucket and upload a file to it:
-```
-aws s3api --endpoint http://localhost:9878/ create-bucket --bucket=wordcount
-# create a temporary file to upload to Ozone via S3 support 
-ls -1 > /tmp/testfile
-aws s3 --endpoint http://localhost:9878 cp --storage-class REDUCED_REDUNDANCY  /tmp/testfile  s3://wordcount/testfile
-```
+Tests run automatically after successful builds on both architectures.
 
-### Run Ozone from released artifact
+## Local Testing
 
-If you need a more realistic cluster, you can [download](https://ozone.apache.org/downloads/) the latest (binary) release package, and start a cluster with the help of docker-compose:
+See `.github/tests/README.md` for instructions on:
+- Setting up test environment
+- Running C smoke tests
+- Testing with PyArrow
+- Configuring for Ozone integration
 
-After you untar the binary:
+## Build Performance
+
+- **First run** (no cache): ~15-17 minutes
+- **Subsequent runs** (with cache): ~9-11 minutes
+- **Tests only** (skip_build): ~5-7 minutes
+
+## Repository Structure
 
 ```
-cd compose/ozone
-docker-compose up -d --scale datanode=3
+.github/
+├── workflows/           # GitHub Actions workflows
+│   └── build-libhdfs-macos-optimized.yml
+├── patches/            # CMake and source patches for macOS compatibility
+├── templates/          # Configuration templates
+└── tests/             # Test scripts and documentation
 ```
 
-The `compose` folder contains different sets of configured clusters (secure, HA, mapreduce example), you can check the various subfolders for more examples.
+## Requirements
 
-### Run on Kubernetes
-
-Ozone is a first class citizen of the Cloud-Native environments. The binary package contains multiple sets of K8s resource files to show how it can be deployed.
-
-## Build from source
-
-Ozone can be built with [Apache Maven](https://maven.apache.org):
-
-```
-mvn clean install -DskipTests
-```
-
-And can be started with the help of Docker:
-
-```
-cd hadoop-ozone/dist/target/ozone-*/compose/ozone
-docker-compose up -d --scale datanode=3
-```
-For more information, you can check the [Contribution guideline](./CONTRIBUTING.md)
-
-## Contribute
-
-All contributions are welcome.
-
- 1. Please open a [Jira](https://issues.apache.org/jira/projects/HDDS/issues) issue
- 2. And create a pull request
-
-For more information, you can check the [Contribution guideline](./CONTRIBUTING.md)
+- macOS 13 (Intel) or macOS 14 (Apple Silicon)
+- Xcode Command Line Tools
+- Homebrew packages: cmake, maven, protobuf@21, openssl@3, snappy, lz4, zstd, zlib
+- Java 11 (for build) and Java 17 (for runtime testing)
 
 ## License
 
-The Apache Ozone project is licensed under the Apache 2.0 License. See the [LICENSE](./LICENSE.txt) file for details.
+This project inherits the Apache License 2.0 from Apache Hadoop.
+
+See `LICENSE.txt` for full license text.
+
+## Credits
+
+Built on top of Apache Hadoop native libraries with patches for macOS compatibility and optimization.
