@@ -11,8 +11,8 @@ on:
         description: 'Hadoop version to build (e.g., 3.3.6)'
         required: false
         default: '3.3.6'
-      run_integration_tests:
-        description: 'Run integration tests only (on existing artifacts)'
+      skip_build:
+        description: 'Skip build and run only integration tests (uses latest artifacts)'
         required: false
         type: boolean
         default: false
@@ -30,6 +30,7 @@ jobs:
   setup-maven:
     name: Setup Maven dependencies cache
     runs-on: macos-13
+    if: github.event.inputs.skip_build != 'true'
 
     steps:
       - name: Checkout repository
@@ -98,6 +99,7 @@ jobs:
     name: Build libhdfs (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: setup-maven
+    if: github.event.inputs.skip_build != 'true'
 
     strategy:
       matrix:
@@ -682,7 +684,7 @@ jobs:
     name: Integration tests with PyArrow (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: build-libhdfs
-    if: always() && (needs.build-libhdfs.result == 'success' || github.event.inputs.run_integration_tests == 'true')
+    if: always() && (needs.build-libhdfs.result == 'success' || github.event.inputs.skip_build == 'true')
 
     strategy:
       matrix:
@@ -710,11 +712,37 @@ jobs:
           java-version: '11'
           architecture: x64
 
-      - name: Download libhdfs artifacts
+      - name: Download libhdfs artifacts (from current run)
+        if: github.event.inputs.skip_build != 'true'
         uses: actions/download-artifact@v4
         with:
           name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}
           path: ~/libhdfs-artifacts/native
+
+      - name: Download libhdfs artifacts (from latest successful run)
+        if: github.event.inputs.skip_build == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "=== Downloading artifacts from latest successful run ==="
+
+          # Find latest successful workflow run
+          WORKFLOW_NAME="build-libhdfs-macos-optimized.yml"
+          LATEST_RUN=$(gh run list --workflow="$WORKFLOW_NAME" --status=success --limit=1 --json databaseId --jq='.[0].databaseId')
+
+          if [ -z "$LATEST_RUN" ]; then
+            echo "❌ No successful runs found"
+            exit 1
+          fi
+
+          echo "Found successful run: $LATEST_RUN"
+
+          # Download artifact
+          mkdir -p ~/libhdfs-artifacts
+          gh run download $LATEST_RUN --name "libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}" --dir ~/libhdfs-artifacts/native
+
+          echo "✅ Artifacts downloaded"
+          ls -la ~/libhdfs-artifacts/native/
 
       - name: Setup mini Ozone cluster
         run: |
