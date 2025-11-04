@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<configuration>
+  <property>
+    <name>ozone.om.address</name>
+    <value>localhost</value>
+  </property>
+  <property>
+    <name>ozone.scm.client.address</name>
+    <value>localhost</value>
+  </property>
+</configuration>

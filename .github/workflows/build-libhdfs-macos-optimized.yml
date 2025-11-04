@@ -726,19 +726,7 @@ jobs:
 
           # Configure Ozone for standalone mode
           cd ~/ozone
-          cat > conf/ozone-site.xml << 'XML'
-<?xml version="1.0"?>
-<configuration>
-  <property>
-    <name>ozone.om.address</name>
-    <value>localhost</value>
-  </property>
-  <property>
-    <name>ozone.scm.client.address</name>
-    <value>localhost</value>
-  </property>
-</configuration>
-XML
+          cp ${GITHUB_WORKSPACE}/.github/templates/ozone-site.xml.template conf/ozone-site.xml
 
           # Start Ozone in background
           ./bin/ozone om --init
