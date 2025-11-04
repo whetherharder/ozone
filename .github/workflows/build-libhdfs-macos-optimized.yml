@@ -748,6 +748,10 @@ jobs:
           echo "Using config directory: $CONF_DIR"
           cp ${GITHUB_WORKSPACE}/.github/templates/ozone-site.xml.template $CONF_DIR/ozone-site.xml
 
+          # Create metadata directories
+          mkdir -p /tmp/ozone/{metadata,scm,om,datanode}
+          echo "Created Ozone metadata directories in /tmp/ozone"
+
           # Start Ozone in background
           ./bin/ozone om --init
           ./bin/ozone scm --init
