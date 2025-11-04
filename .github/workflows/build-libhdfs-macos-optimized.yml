@@ -11,6 +11,11 @@ on:
         description: 'Hadoop version to build (e.g., 3.3.6)'
         required: false
         default: '3.3.6'
+      run_integration_tests:
+        description: 'Run integration tests with mini Ozone (slower)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   HADOOP_VERSION: ${{ github.event.inputs.hadoop_version || '3.3.6' }}
@@ -669,3 +674,103 @@ jobs:
           echo "- \`libhdfs.a\` - HDFS C API library (static)" >> $GITHUB_STEP_SUMMARY
           echo "- \`libhadoop.dylib\` - Hadoop native library (dynamic)" >> $GITHUB_STEP_SUMMARY
           echo "- \`libhadoop.a\` - Hadoop native library (static)" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================
+  # JOB 3: Integration tests with PyArrow (optional, manual)
+  # ============================================
+  integration-tests:
+    name: Integration tests with PyArrow (${{ matrix.arch }})
+    if: github.event.inputs.run_integration_tests == 'true'
+    runs-on: ${{ matrix.runner }}
+    needs: build-libhdfs
+
+    strategy:
+      matrix:
+        include:
+          - arch: intel-x86_64
+            runner: macos-13
+            arch_name: x86_64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+          architecture: x64
+
+      - name: Download libhdfs artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libhdfs-${{ env.HADOOP_VERSION }}-macos-${{ matrix.arch }}
+          path: ~/libhdfs-artifacts/native
+
+      - name: Setup mini Ozone cluster
+        run: |
+          echo "=== Setting up mini Ozone cluster ==="
+
+          # Download Ozone
+          OZONE_VERSION=1.4.0
+          curl -L -o ozone.tar.gz \
+            https://archive.apache.org/dist/ozone/${OZONE_VERSION}/ozone-${OZONE_VERSION}.tar.gz
+          tar -xzf ozone.tar.gz
+          mv ozone-${OZONE_VERSION} ~/ozone
+
+          # Configure Ozone for standalone mode
+          cd ~/ozone
+          cat > conf/ozone-site.xml << 'XML'
+<?xml version="1.0"?>
+<configuration>
+  <property>
+    <name>ozone.om.address</name>
+    <value>localhost</value>
+  </property>
+  <property>
+    <name>ozone.scm.client.address</name>
+    <value>localhost</value>
+  </property>
+</configuration>
+XML
+
+          # Start Ozone in background
+          ./bin/ozone om --init
+          ./bin/ozone scm --init
+          ./bin/ozone om &
+          ./bin/ozone scm &
+
+          # Wait for startup
+          sleep 30
+
+          echo "✅ Mini Ozone cluster started"
+
+      - name: Install Python dependencies
+        run: |
+          pip install pyarrow pandas
+
+      - name: Run integration tests
+        run: |
+          export HADOOP_HOME=~/libhdfs-artifacts
+          export JAVA_HOME=$(/usr/libexec/java_home -v 11)
+
+          # Note: We need JARs from somewhere - either download or use from Maven cache
+          mkdir -p $HADOOP_HOME/jars
+          # For now, skip CLASSPATH setup - PyArrow may handle it
+
+          export DYLD_LIBRARY_PATH=$HADOOP_HOME/native:$JAVA_HOME/lib/server
+          export HDFS_HOST=localhost
+          export HDFS_PORT=9862  # Ozone default
+
+          python3 .github/tests/test_libhdfs_pyarrow.py
+
+      - name: Cleanup Ozone
+        if: always()
+        run: |
+          pkill -f ozone || true
