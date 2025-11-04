@@ -12,7 +12,7 @@ on:
         required: false
         default: '3.3.6'
       run_integration_tests:
-        description: 'Run integration tests with mini Ozone (slower)'
+        description: 'Run integration tests only (on existing artifacts)'
         required: false
         type: boolean
         default: false
@@ -676,13 +676,13 @@ jobs:
           echo "- \`libhadoop.a\` - Hadoop native library (static)" >> $GITHUB_STEP_SUMMARY
 
   # ============================================
-  # JOB 3: Integration tests with PyArrow (optional, manual)
+  # JOB 3: Integration tests with PyArrow (runs automatically after builds)
   # ============================================
   integration-tests:
     name: Integration tests with PyArrow (${{ matrix.arch }})
-    if: github.event.inputs.run_integration_tests == 'true'
     runs-on: ${{ matrix.runner }}
     needs: build-libhdfs
+    if: always() && (needs.build-libhdfs.result == 'success' || github.event.inputs.run_integration_tests == 'true')
 
     strategy:
       matrix:
