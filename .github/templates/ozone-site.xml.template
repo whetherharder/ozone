@@ -1,13 +1,24 @@
 <?xml version="1.0"?>
 <configuration>
+  <!-- Network Configuration -->
   <property>
     <name>ozone.om.address</name>
-    <value>localhost</value>
+    <value>localhost:9862</value>
   </property>
   <property>
     <name>ozone.scm.client.address</name>
-    <value>localhost</value>
+    <value>localhost:9860</value>
   </property>
+  <property>
+    <name>ozone.scm.datanode.address</name>
+    <value>localhost:9861</value>
+  </property>
+  <property>
+    <name>ozone.scm.block.client.address</name>
+    <value>localhost:9863</value>
+  </property>
+
+  <!-- Storage Directories -->
   <property>
     <name>ozone.metadata.dirs</name>
     <value>/tmp/ozone/metadata</value>
@@ -21,7 +32,23 @@
     <value>/tmp/ozone/om</value>
   </property>
   <property>
-    <name>ozone.scm.datanode.id.dir</name>
+    <name>hdds.datanode.dir</name>
     <value>/tmp/ozone/datanode</value>
+  </property>
+
+  <!-- Datanode Configuration -->
+  <property>
+    <name>dfs.datanode.address</name>
+    <value>localhost:9864</value>
+  </property>
+  <property>
+    <name>dfs.datanode.http.address</name>
+    <value>localhost:9865</value>
+  </property>
+
+  <!-- Replication -->
+  <property>
+    <name>ozone.replication</name>
+    <value>1</value>
   </property>
 </configuration>

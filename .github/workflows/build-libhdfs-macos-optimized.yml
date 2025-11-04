@@ -797,17 +797,69 @@ jobs:
           # Create metadata directories
           mkdir -p /tmp/ozone/{metadata,scm,om,datanode}
 
-          echo "=== Initializing and starting Ozone ==="
-          ./bin/ozone om --init
+          echo "=== Initializing Ozone components ==="
           ./bin/ozone scm --init
-          ./bin/ozone om > /tmp/ozone/om.log 2>&1 &
+          ./bin/ozone om --init
+
+          echo "=== Starting Ozone components ==="
+          # Start in correct order: SCM -> OM -> Datanode
+
+          # Start SCM first
+          echo "Starting SCM..."
           ./bin/ozone scm > /tmp/ozone/scm.log 2>&1 &
+          SCM_PID=$!
+          echo "SCM PID: $SCM_PID"
+          sleep 10
 
-          # Wait for startup
-          echo "Waiting for Ozone to start..."
-          sleep 30
+          # Check SCM is running
+          if ! ps -p $SCM_PID > /dev/null; then
+            echo "❌ SCM failed to start"
+            cat /tmp/ozone/scm.log
+            exit 1
+          fi
+          echo "✅ SCM started"
 
-          echo "✅ Ozone started"
+          # Start OM
+          echo "Starting OM..."
+          ./bin/ozone om > /tmp/ozone/om.log 2>&1 &
+          OM_PID=$!
+          echo "OM PID: $OM_PID"
+          sleep 10
+
+          # Check OM is running
+          if ! ps -p $OM_PID > /dev/null; then
+            echo "❌ OM failed to start"
+            cat /tmp/ozone/om.log
+            exit 1
+          fi
+          echo "✅ OM started"
+
+          # Start Datanode
+          echo "Starting Datanode..."
+          ./bin/ozone datanode > /tmp/ozone/datanode.log 2>&1 &
+          DN_PID=$!
+          echo "Datanode PID: $DN_PID"
+          sleep 15
+
+          # Check Datanode is running
+          if ! ps -p $DN_PID > /dev/null; then
+            echo "⚠️  Datanode may have failed to start (continuing anyway)"
+            cat /tmp/ozone/datanode.log || true
+          else
+            echo "✅ Datanode started"
+          fi
+
+          # Final check - all processes should be running
+          echo "=== Ozone cluster status ==="
+          echo "SCM: $(ps -p $SCM_PID > /dev/null && echo 'Running ✅' || echo 'Stopped ❌')"
+          echo "OM: $(ps -p $OM_PID > /dev/null && echo 'Running ✅' || echo 'Stopped ❌')"
+          echo "Datanode: $(ps -p $DN_PID > /dev/null && echo 'Running ✅' || echo 'Stopped ❌')"
+
+          # Additional wait for services to be fully ready
+          echo "Waiting for services to be fully ready..."
+          sleep 10
+
+          echo "✅ Ozone cluster ready"
 
       - name: Install Python dependencies
         run: |
@@ -822,10 +874,14 @@ jobs:
           export HDFS_PORT=9862
 
           python3 .github/tests/test_libhdfs_pyarrow.py || {
-            echo "=== Ozone OM logs ==="
-            cat /tmp/ozone/om.log || true
             echo "=== Ozone SCM logs ==="
             cat /tmp/ozone/scm.log || true
+            echo ""
+            echo "=== Ozone OM logs ==="
+            cat /tmp/ozone/om.log || true
+            echo ""
+            echo "=== Ozone Datanode logs ==="
+            cat /tmp/ozone/datanode.log || true
             exit 1
           }
 
