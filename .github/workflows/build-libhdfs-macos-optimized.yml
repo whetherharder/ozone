@@ -690,6 +690,9 @@ jobs:
           - arch: intel-x86_64
             runner: macos-13
             arch_name: x86_64
+          - arch: apple-silicon-arm64
+            runner: macos-14
+            arch_name: arm64
 
     steps:
       - name: Checkout repository
