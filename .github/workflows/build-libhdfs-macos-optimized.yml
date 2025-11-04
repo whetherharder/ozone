@@ -729,7 +729,24 @@ jobs:
 
           # Configure Ozone for standalone mode
           cd ~/ozone
-          cp ${GITHUB_WORKSPACE}/.github/templates/ozone-site.xml.template conf/ozone-site.xml
+
+          # Check directory structure and create conf if needed
+          echo "Ozone directory structure:"
+          ls -la
+
+          # Ozone may use 'etc' or 'conf' directory
+          if [ -d "etc" ]; then
+            CONF_DIR="etc/hadoop"
+            mkdir -p $CONF_DIR
+          elif [ -d "conf" ]; then
+            CONF_DIR="conf"
+          else
+            CONF_DIR="conf"
+            mkdir -p $CONF_DIR
+          fi
+
+          echo "Using config directory: $CONF_DIR"
+          cp ${GITHUB_WORKSPACE}/.github/templates/ozone-site.xml.template $CONF_DIR/ozone-site.xml
 
           # Start Ozone in background
           ./bin/ozone om --init
